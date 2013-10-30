@@ -82,12 +82,11 @@ class Decoder(DecoderMixin, ReporterMixin):
 
     def __init__(self, estimator, masker,
                  weights_attr='coef_', transformer=None,
-                 report_dir=tempfile.gettempdir(), report_params=None):
+                 report_params=None):
         self.estimator = estimator
         self.masker = masker
         self.weights_attr = weights_attr
         self.transformer = transformer
-        self.report_dir = report_dir
         self.report_params = report_params
 
     def fit(self, X, y=None):
