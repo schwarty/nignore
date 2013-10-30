@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')
+
 import sys
 import os
 import glob
@@ -76,4 +79,3 @@ class ClassificationReporterMixin(ReporterMixin):
 
     def _classification_report(self):
         self._check_report_params()
-

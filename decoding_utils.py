@@ -1,9 +1,4 @@
-import os
-import tempfile
-
-import nibabel as nb
 import numpy as np
-import pylab as pl
 
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_recall_fscore_support
