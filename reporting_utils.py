@@ -40,7 +40,7 @@ class ReporterMixin(object):
 class NiimgReporterMixin(ReporterMixin):
 
     def _niimg_report(self):
-        self._check_report_params(self)
+        self._check_report_params()
 
         images = []
 
