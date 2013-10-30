@@ -6,7 +6,11 @@ import numpy as np
 import pylab as pl
 
 from sklearn.metrics import accuracy_score
-from reporting_utils import ReporterMixin
+from sklearn.metrics import precision_recall_fscore_support
+from sklearn.multiclass import _ConstantPredictor
+
+from reporting_utils import ClassificationReporterMixin
+from reporting_utils import NiimgReporterMixin
 
 
 def get_estimator_weights(estimator, weights_attr='coef_', transformer=None):
@@ -29,6 +33,8 @@ def _get_estimator_weights(estimator, weights_attr='coef_'):
         coef_ = _get_pipeline_weights(estimator, weights_attr)
     elif hasattr(estimator, weights_attr):
         coef_ = _get_base_estimator_weights(estimator, weights_attr)
+    elif isinstance(estimator, _ConstantPredictor):
+        coef_ = None
     else:
         raise Exception('Estimator %s not supported' % estimator)
 
@@ -62,9 +68,20 @@ def _get_base_estimator_weights(estimator, weights_attr):
 
 
 def _get_meta_estimator_weights(estimator, weights_attr):
-    return np.vstack(
-        [_get_estimator_weights(est, weights_attr='coef_')
-         for est in estimator.estimators_])
+    W_ = []
+    shape = None
+
+    for est in estimator.estimators_:
+        w = _get_estimator_weights(est, weights_attr=weights_attr)
+        if shape is None and w is not None:
+            shape = w.shape
+        W_.append(w)
+
+    for i, w in enumerate(W_):
+        if w is None:
+            W_[i] = np.zeros(shape)
+
+    return np.vstack(W_)
 
 
 class DecoderMixin(object):
@@ -77,8 +94,21 @@ class DecoderMixin(object):
             self.niimgs_ = [self.masker.inverse_transform(w) for w in coef]
         self.niimg_ = self.masker.inverse_transform(coef)
 
+    def _get_scores(self):
+        self.scores_ = []
+        if len(self.y_true_.shape) == 2:
+            Y_true = self.y_true_
+            Y_pred = self.y_pred_
 
-class Decoder(DecoderMixin, ReporterMixin):
+            if self.labels is None:
+                self.labels = [''] * len(self.niimgs_)
+
+            for label, y_true, y_pred in zip(self.labels, Y_true.T, Y_pred.T):
+                self.scores_.append(
+                    (label, precision_recall_fscore_support(y_true, y_pred)))
+
+
+class Decoder(DecoderMixin, ClassificationReporterMixin, NiimgReporterMixin):
 
     def __init__(self, estimator, masker,
                  weights_attr='coef_', transformer=None,
@@ -100,5 +130,5 @@ class Decoder(DecoderMixin, ReporterMixin):
 
     def score(self, X, y):
         self.y_true_, self.y_pred_ = y, self.predict(X)
-        self._classification_report()
+        self._get_scores()
         return accuracy_score(self.y_true_, self.y_pred_)

@@ -10,8 +10,6 @@ sys.path.insert(0, os.path.join(pwd, 'externals'))
 import pylab as pl
 import nibabel as nb
 
-from sklearn.metrics import precision_recall_fscore_support
-
 from externals import tempita
 from externals import markdown
 from viz_utils import plot_estimator
@@ -30,8 +28,16 @@ class ReporterMixin(object):
     def _finalize_report(self):
         pass
 
+    def configure(self, labels=None, report_dir=tempfile.gettempdir()):
+        self.labels = labels
+        self.report_dir = report_dir
+        return self
+
+
+class NiimgReporterMixin(ReporterMixin):
+
     def _niimg_report(self):
-        self._check_report_params()
+        self._check_report_params(self)
 
         images = []
 
@@ -65,24 +71,9 @@ class ReporterMixin(object):
             warnings.warn('Object has not niimgs, could '
                           'not report generate report.')
 
+
+class ClassificationReporterMixin(ReporterMixin):
+
     def _classification_report(self):
         self._check_report_params()
 
-        scores = []
-        if len(self.y_true_.shape) == 2:
-            Y_true = self.y_true_
-            Y_pred = self.y_pred_
-
-            if self.labels is None:
-                self.labels = [''] * len(self.niimgs_)
-
-            for label, y_true, y_pred in zip(self.labels, Y_true.T, Y_pred.T):
-                scores.append(
-                    (label, precision_recall_fscore_support(y_true, y_pred)))
-
-        return scores
-
-    def configure(self, labels=None, report_dir=tempfile.gettempdir()):
-        self.labels = labels
-        self.report_dir = report_dir
-        return self
