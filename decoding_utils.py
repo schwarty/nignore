@@ -8,92 +8,82 @@ from reporting_utils import ClassificationReporterMixin
 from reporting_utils import NiimgReporterMixin
 
 
-def get_estimator_weights(estimator, weights_attr='coef_', transformer=None):
-
+def get_estimated(estimator, name='coef_'):
     if hasattr(estimator, 'estimators_'):
-        coef_ = _get_meta_estimator_weights(estimator, weights_attr, )
-    else:
-        coef_ = _get_estimator_weights(estimator, weights_attr)
-
-    if transformer is not None:
-        return transformer.inverse_transform(coef_)
-    return coef_
-
-
-def _get_estimator_weights(estimator, weights_attr='coef_'):
-
-    if hasattr(estimator, 'best_estimator_'):
-        coef_ = _get_grid_search_weights(estimator, weights_attr)
+        estimated_ = _get_estimated_meta(estimator, name, )
+    elif hasattr(estimator, 'best_estimator_'):
+        estimated_ = _get_estimated_grid_search(estimator, name)
     elif hasattr(estimator, 'steps'):
-        coef_ = _get_pipeline_weights(estimator, weights_attr)
-    elif hasattr(estimator, weights_attr):
-        coef_ = _get_base_estimator_weights(estimator, weights_attr)
+        estimated_ = _get_estimated_pipeline(estimator, name)
+    elif hasattr(estimator, name):
+        estimated_ = _get_estimated_base(estimator, name)
     elif isinstance(estimator, _ConstantPredictor):
-        coef_ = None
+        estimated_ = None
     else:
         raise Exception('Estimator %s not supported' % estimator)
+    return estimated_
 
-    return coef_
 
-
-def _get_grid_search_weights(grid_search, weights_attr):
+def _get_estimated_grid_search(grid_search, name):
     estimator = grid_search.best_estimator_
+    return get_estimated(estimator, name)
 
-    return _get_estimator_weights(estimator, weights_attr)
 
-
-def _get_pipeline_weights(pipeline, weights_attr):
+def _get_estimated_pipeline(pipeline, name):
     estimator = pipeline.steps[-1][1]
-
-    coef_ = _get_estimator_weights(estimator, weights_attr)
-
+    estimated_ = get_estimated(estimator, name)
     if len(pipeline.steps) == 1:
-        return coef_
+        return estimated_
     else:
-        return pipeline.inverse_transform(coef_)
+        estimated_t = np.array(estimated_, copy=True)
+        for name, step in pipeline.steps[:-1][::-1]:
+            estimated_t = step.inverse_transform(estimated_t)
+        return estimated_t
+    return estimated_
 
 
-def _get_base_estimator_weights(estimator, weights_attr):
-    if hasattr(estimator, weights_attr):
-        return getattr(estimator, weights_attr)
+def _get_estimated_base(estimator, name):
+    if hasattr(estimator, name):
+        return getattr(estimator, name)
     else:
-        raise Exception('BaseEstimator %s does not '
-                        'have an attribute called %s' % (estimator,
-                                                         weights_attr))
+        raise Exception(
+            'BaseEstimator %s does not '
+            'have an attribute called %s' % (estimator, name))
 
 
-def _get_meta_estimator_weights(estimator, weights_attr):
-    W_ = []
+def _get_estimated_meta(estimator, name):
+    estimated_ = []
     shape = None
 
-    for est in estimator.estimators_:
-        w = _get_estimator_weights(est, weights_attr=weights_attr)
-        if shape is None and w is not None:
-            shape = w.shape
-        W_.append(w)
+    for estimator in estimator.estimators_:
+        estimated = get_estimated(estimator, name=name)
+        if shape is None and estimated is not None:
+            shape = estimated.shape
+        estimated_.append(estimated)
 
-    for i, w in enumerate(W_):
-        if w is None:
-            W_[i] = np.zeros(shape)
+    for i, estimated in enumerate(estimated_):
+        if estimated is None:
+            estimated_[i] = np.zeros(shape)
 
-    return np.vstack(W_)
+    return np.vstack(estimated_)
 
 
 class DecoderMixin(object):
 
     def _get_niimgs(self):
-        coef = get_estimator_weights(self.estimator,
-                                     self.weights_attr, self.transformer)
+        estimated_ = get_estimated(self.estimator, self.estimated_name)
 
-        if len(coef.shape) == 2:
-            self.niimgs_ = [self.masker.inverse_transform(w) for w in coef]
-        self.niimg_ = self.masker.inverse_transform(coef)
+        if len(estimated_.shape) == 2:
+            self.niimgs_ = [self.masker.inverse_transform(estimated)
+                            for estimated in estimated_]
+        self.niimg_ = self.masker.inverse_transform(estimated_)
 
-    def _get_scores(self):
+    def _get_scores(self, y_true, y_pred):
         self.scores_ = []
-        if len(self.y_true_.shape) == 2:
-            Y_true = self.y_true_
-            Y_pred = self.y_pred_
+
+        if len(y_true.shape) == 2:
+            Y_true = y_true
+            Y_pred = y_pred
 
             if self.labels is None:
                 self.labels = [''] * len(self.niimgs_)
@@ -101,17 +91,19 @@ class DecoderMixin(object):
             for label, y_true, y_pred in zip(self.labels, Y_true.T, Y_pred.T):
                 self.scores_.append(
                     (label, precision_recall_fscore_support(y_true, y_pred)))
+        else:
+            self.scores_ = (
+                self.labels,
+                precision_recall_fscore_support(y_true, y_pred))
 
 
 class Decoder(DecoderMixin, ClassificationReporterMixin, NiimgReporterMixin):
 
-    def __init__(self, estimator, masker,
-                 weights_attr='coef_', transformer=None,
+    def __init__(self, estimator, masker, estimated_name='coef_',
                  report_params=None):
         self.estimator = estimator
         self.masker = masker
-        self.weights_attr = weights_attr
-        self.transformer = transformer
+        self.estimated_name = estimated_name
         self.report_params = report_params
 
     def fit(self, X, y=None):
@@ -124,6 +116,6 @@ class Decoder(DecoderMixin, ClassificationReporterMixin, NiimgReporterMixin):
         return self.estimator.predict(X)
 
     def score(self, X, y):
-        self.y_true_, self.y_pred_ = y, self.predict(X)
-        self._get_scores()
-        return accuracy_score(self.y_true_, self.y_pred_)
+        y_true, y_pred = y, self.predict(X)
+        self._get_scores(y_true, y_pred)
+        return accuracy_score(y_true, y_pred)

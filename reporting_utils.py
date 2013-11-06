@@ -61,7 +61,7 @@ class NiimgReporterMixin(ReporterMixin):
 
         elif hasattr(self, 'niimg_'):
             if self.labels is None:
-                self.labels = 'estimator'
+                self.labels = ''
             # png image
             plot_niimg(self.niimg_, self.labels, self.report_params)
             fname = '%s.png' % label
