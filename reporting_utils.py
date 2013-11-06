@@ -15,7 +15,7 @@ import nibabel as nb
 
 from externals import tempita
 from externals import markdown
-from viz_utils import plot_estimator
+from viz_utils import plot_niimg
 
 
 class ReporterMixin(object):
@@ -51,7 +51,7 @@ class NiimgReporterMixin(ReporterMixin):
                                                    self.niimgs_)):
                 label = i if label == '' else label
                 # png image
-                plot_estimator(niimg, label, self.report_params)
+                plot_niimg(niimg, label, self.report_params)
                 fname = '%s.png' % label
                 pl.savefig(os.path.join(self.report_dir, fname), dpi=200)
                 images.append(fname)
@@ -63,7 +63,7 @@ class NiimgReporterMixin(ReporterMixin):
             if self.labels is None:
                 self.labels = 'estimator'
             # png image
-            plot_estimator(self.niimg_, self.labels, self.report_params)
+            plot_niimg(self.niimg_, self.labels, self.report_params)
             fname = '%s.png' % label
             pl.savefig(os.path.join(self.report_dir, fname), dpi=200)
             images.append(fname)
