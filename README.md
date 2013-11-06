@@ -1,4 +1,4 @@
-nilearn_labs
-============
+nignore
+=======
 
-Prototyping stuff that could go one day in nilearn
+Utilities for reporting and visualization, to use with the ni* packages.
