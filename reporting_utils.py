@@ -15,6 +15,7 @@ import nibabel as nb
 import pylab as pl
 
 from sklearn.base import BaseEstimator
+from sklearn.metrics import classification_report
 from nipy.labs.viz import plot_map
 from nipy.labs.viz_tools import cm
 
@@ -64,8 +65,9 @@ class Reporter(BaseEstimator):
             self.report_dir, '%s.png' % fname), **self.save_params)
         nb.save(niimg, os.path.join(self.report_dir, '%s.nii.gz' % fname))
 
-    # def evaluation(self, y_true, y_pred, title):
-    #     fname = title.replace(' ', '_').replace('/', '_')
-    #     with open(os.path.join(self.report_dir,
-    #                            'evaluation_%s.json' % fname), 'wb') as f:
-    #         json.dump(data, f)
+    def evaluation(self, y_true, y_pred, labels):
+        # with open(os.path.join(self.report_dir, 'evaluation.json'), 'wb') as f:
+        #     json.dump(data, f)
+        with open(os.path.join(self.report_dir,
+                               'classification_report.txt'), 'wb') as f:
+            f.write(classification_report(y_true, y_pred, target_names=labels))

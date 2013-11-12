@@ -124,7 +124,7 @@ class Decoder(BaseEstimator):
         X = self.masker.fit_transform(niimgs)
         y = self.labelizer.fit_transform(target_names)
         self.estimator.fit(X, y)
-        self._niimg_report()
+        self._boundary_report()
         return self
 
     def predict(self, niimgs):
@@ -135,35 +135,19 @@ class Decoder(BaseEstimator):
     def score(self, niimgs, target_names):
         y = self.labelizer.transform(target_names)
         self.y_true_, y_pred = y, self.predict(niimgs)
-        # self._get_scores(self.y_true_, self.y_pred_)
-        # self._classification_report()
+        self._classification_report()
         return accuracy_score(self.y_true_, self.y_pred_)
 
-    def _niimg_report(self):
+    def _boundary_report(self):
         estimated_ = get_estimated(self.estimator, self.estimated_name)
-
         if estimated_.ndim == 2:
             self.niimgs_ = [self.masker.inverse_transform(val)
                             for val in estimated_]
         else:
             self.niimgs_ = [self.masker.inverse_transform(estimated_)]
+        for title, niimg in zip(self.labelizer.classes_, self.niimgs_):
+            self.reporter.boundary(niimg, title)
 
-        if hasattr(self, 'niimgs_'):
-            for title, niimg in zip(self.labelizer.classes_, self.niimgs_):
-                self.reporter.plot_boundary(niimg, title)
-        else:
-            warnings.warn('Object has not niimgs, could '
-                          'not report generate report.')
-
-    # def _classification_report(self):
-    #     headers = ['name', 'precision', 'recall', 'f1-score', 'support']
-    #     scores = {}
-
-    #     if hasattr(self, 'scores_'):
-    #         for classes_scores in self.scores_:
-    #             for class_name, score in zip(self.labelizer.classes_,
-    #                                          classes_scores):
-    #                 scores.setdefault(class_name, []).append(score)
-
-    #     data = [[k] + scores[k] for k in scores.keys()]
-    #     self.reporter.save_table(data, 'scores', headers)
+    def _classification_report(self):
+        self.reporter.evaluation(self.y_true_, self.y_pred_,
+                                 self.labelizer.classes_)
