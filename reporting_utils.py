@@ -3,79 +3,69 @@ matplotlib.use('Agg')
 
 import sys
 import os
-import glob
+import json
 import tempfile
 import warnings
 
 pwd = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(pwd, 'externals'))
 
-import pylab as pl
+import numpy as np
 import nibabel as nb
+import pylab as pl
+
+from sklearn.base import BaseEstimator
+from nipy.labs.viz import plot_map
+from nipy.labs.viz_tools import cm
 
 from externals import tempita
 from externals import markdown
 from viz_utils import plot_niimg
 
 
-class ReporterMixin(object):
+def _check_boundary_params(params):
+    if params is None:
+        params = {}
+    _params = {'cmap': cm.cold_hot,
+               'slicer': 'z',
+               'cut_coords': 7}
+    _params.update(params)
+    return _params
 
-    def _check_report_params(self):
-        if not hasattr(self, 'report_dir'):
-            self.report_dir = tempfile.gettempdir()
+
+def _check_save_params(params):
+    if params is None:
+        params = {}
+    _params = {'dpi': 200}
+    _params.update(params)
+    return _params
+
+
+class Reporter(BaseEstimator):
+
+    def __init__(self, report_dir=None,
+                 boundary_params=None, save_params=None):
+        self.report_dir = report_dir or tempfile.mkdtemp(suffix='report_')
         if not os.path.exists(self.report_dir):
             os.makedirs(self.report_dir)
-        if not hasattr(self, 'labels'):
-            self.labels = None
+        self.boundary_params = _check_boundary_params(boundary_params)
+        self.save_params = _check_save_params(save_params)
 
-    def _finalize_report(self):
-        pass
+    def boundary(self, niimg, title):
+        vmax = np.abs(niimg.get_data()).max()
+        plot_map(niimg.get_data(),
+                 affine=niimg.get_affine(),
+                 vmin=-vmax,
+                 vmax=vmax,
+                 title=title,
+                 **self.boundary_params)
+        fname = title.replace(' ', '_').replace('/', '_')
+        pl.savefig(os.path.join(
+            self.report_dir, '%s.png' % fname), **self.save_params)
+        nb.save(niimg, os.path.join(self.report_dir, '%s.nii.gz' % fname))
 
-    def configure(self, labels=None, report_dir=tempfile.gettempdir()):
-        self.labels = labels
-        self.report_dir = report_dir
-        return self
-
-
-class NiimgReporterMixin(ReporterMixin):
-
-    def _niimg_report(self):
-        self._check_report_params()
-
-        images = []
-
-        if hasattr(self, 'niimgs_'):
-            if self.labels is None:
-                self.labels = [''] * len(self.niimgs_)
-            for i, (label, niimg) in enumerate(zip(self.labels,
-                                                   self.niimgs_)):
-                label = i if label == '' else label
-                # png image
-                plot_niimg(niimg, label, self.report_params)
-                fname = '%s.png' % label
-                pl.savefig(os.path.join(self.report_dir, fname), dpi=200)
-                images.append(fname)
-                # nifti image
-                fname = '%s.nii.gz' % label
-                nb.save(niimg, os.path.join(self.report_dir, fname))
-
-        elif hasattr(self, 'niimg_'):
-            if self.labels is None:
-                self.labels = ''
-            # png image
-            plot_niimg(self.niimg_, self.labels, self.report_params)
-            fname = '%s.png' % label
-            pl.savefig(os.path.join(self.report_dir, fname), dpi=200)
-            images.append(fname)
-            # nifti image
-            fname = '%s.nii.gz' % label
-            nb.save(niimg, os.path.join(self.report_dir, fname))
-        else:
-            warnings.warn('Object has not niimgs, could '
-                          'not report generate report.')
-
-
-class ClassificationReporterMixin(ReporterMixin):
-
-    def _classification_report(self):
-        self._check_report_params()
+    # def evaluation(self, y_true, y_pred, title):
+    #     fname = title.replace(' ', '_').replace('/', '_')
+    #     with open(os.path.join(self.report_dir,
+    #                            'evaluation_%s.json' % fname), 'wb') as f:
+    #         json.dump(data, f)

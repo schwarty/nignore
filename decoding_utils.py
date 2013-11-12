@@ -1,22 +1,30 @@
+import warnings
+
 import numpy as np
 
+from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.multiclass import _ConstantPredictor
+from sklearn.preprocessing import LabelEncoder
+from sklearn.svm import LinearSVC
 
-from reporting_utils import ClassificationReporterMixin
-from reporting_utils import NiimgReporterMixin
+from nilearn.input_data import NiftiMasker
+
+# from reporting_utils import ClassificationMixin
+# from reporting_utils import NiimgMixin
+from reporting_utils import Reporter
 
 
 def get_estimated(estimator, name='coef_'):
     if hasattr(estimator, 'estimators_'):
-        estimated_ = _get_estimated_meta(estimator, name, )
+        estimated_ = _get_meta(estimator, name, )
     elif hasattr(estimator, 'best_estimator_'):
-        estimated_ = _get_estimated_grid_search(estimator, name)
+        estimated_ = _get_grid_search(estimator, name)
     elif hasattr(estimator, 'steps'):
-        estimated_ = _get_estimated_pipeline(estimator, name)
-    elif hasattr(estimator, name):
-        estimated_ = _get_estimated_base(estimator, name)
+        estimated_ = _get_pipeline(estimator, name)
+    elif hasattr(estimator, name.split('.')[0]):
+        estimated_ = _get_base(estimator, name)
     elif isinstance(estimator, _ConstantPredictor):
         estimated_ = None
     else:
@@ -24,12 +32,12 @@ def get_estimated(estimator, name='coef_'):
     return estimated_
 
 
-def _get_estimated_grid_search(grid_search, name):
+def _get_grid_search(grid_search, name):
     estimator = grid_search.best_estimator_
     return get_estimated(estimator, name)
 
 
-def _get_estimated_pipeline(pipeline, name):
+def _get_pipeline(pipeline, name):
     estimator = pipeline.steps[-1][1]
     estimated_ = get_estimated(estimator, name)
     if len(pipeline.steps) == 1:
@@ -42,16 +50,16 @@ def _get_estimated_pipeline(pipeline, name):
     return estimated_
 
 
-def _get_estimated_base(estimator, name):
-    if hasattr(estimator, name):
-        return getattr(estimator, name)
+def _get_base(estimator, name):
+    if hasattr(estimator, name.split('.')[0]):
+        return reduce(getattr, name.split('.'), estimator)
     else:
         raise Exception(
             'BaseEstimator %s does not '
             'have an attribute called %s' % (estimator, name))
 
 
-def _get_estimated_meta(estimator, name):
+def _get_meta(estimator, name):
     estimated_ = []
     shape = None
 
@@ -72,50 +80,90 @@ class DecoderMixin(object):
 
     def _get_niimgs(self):
         estimated_ = get_estimated(self.estimator, self.estimated_name)
-
-        if len(estimated_.shape) == 2:
-            self.niimgs_ = [self.masker.inverse_transform(estimated)
-                            for estimated in estimated_]
-        self.niimg_ = self.masker.inverse_transform(estimated_)
+        if estimated_.ndim == 2:
+            self.niimgs_ = [self.masker.inverse_transform(val)
+                            for val in estimated_]
+        else:
+            self.niimgs_ = [self.masker.inverse_transform(estimated_)]
 
     def _get_scores(self, y_true, y_pred):
         self.scores_ = []
-
-        if len(y_true.shape) == 2:
+        if y_true.ndim == 2:
             Y_true = y_true
             Y_pred = y_pred
-
-            if self.labels is None:
-                self.labels = [''] * len(self.niimgs_)
-
-            for label, y_true, y_pred in zip(self.labels, Y_true.T, Y_pred.T):
-                self.scores_.append(
-                    (label, precision_recall_fscore_support(y_true, y_pred)))
+            precisions = []
+            recalls = []
+            fscores = []
+            supports = []
+            for y_true, y_pred in zip(Y_true.T, Y_pred.T):
+                prec, rec, f1, supp = \
+                    precision_recall_fscore_support(y_true, y_pred)
+                precisions.append(prec)
+                recalls.append(rec)
+                fscores.append(f1)
+                supports.append(supp)
+            self.scores_ = [precisions, recalls, fscores, supports]
         else:
-            self.scores_ = (
-                self.labels,
-                precision_recall_fscore_support(y_true, y_pred))
+            self.scores_ = precision_recall_fscore_support(y_true, y_pred)
 
 
-class Decoder(DecoderMixin, ClassificationReporterMixin, NiimgReporterMixin):
+class Decoder(BaseEstimator):
 
-    def __init__(self, estimator, masker, estimated_name='coef_',
-                 report_params=None):
+    def __init__(self, estimator=LinearSVC(),
+                 masker=NiftiMasker(),
+                 labelizer=LabelEncoder(),
+                 reporter=Reporter(),
+                 estimated_name='coef_'):
         self.estimator = estimator
         self.masker = masker
+        self.labelizer = labelizer
+        self.reporter = reporter
         self.estimated_name = estimated_name
-        self.report_params = report_params
 
-    def fit(self, X, y=None):
+    def fit(self, niimgs, target_names):
+        X = self.masker.fit_transform(niimgs)
+        y = self.labelizer.fit_transform(target_names)
         self.estimator.fit(X, y)
-        self._get_niimgs()
+        self._niimg_report()
         return self
 
-    def predict(self, X):
-        self._niimg_report()
-        return self.estimator.predict(X)
+    def predict(self, niimgs):
+        X = self.masker.transform(niimgs)
+        self.y_pred_ = self.estimator.predict(X)
+        return self.labelizer.inverse_transform(self.y_pred_)
 
-    def score(self, X, y):
-        y_true, y_pred = y, self.predict(X)
-        self._get_scores(y_true, y_pred)
-        return accuracy_score(y_true, y_pred)
+    def score(self, niimgs, target_names):
+        y = self.labelizer.transform(target_names)
+        self.y_true_, y_pred = y, self.predict(niimgs)
+        # self._get_scores(self.y_true_, self.y_pred_)
+        # self._classification_report()
+        return accuracy_score(self.y_true_, self.y_pred_)
+
+    def _niimg_report(self):
+        estimated_ = get_estimated(self.estimator, self.estimated_name)
+
+        if estimated_.ndim == 2:
+            self.niimgs_ = [self.masker.inverse_transform(val)
+                            for val in estimated_]
+        else:
+            self.niimgs_ = [self.masker.inverse_transform(estimated_)]
+
+        if hasattr(self, 'niimgs_'):
+            for title, niimg in zip(self.labelizer.classes_, self.niimgs_):
+                self.reporter.plot_boundary(niimg, title)
+        else:
+            warnings.warn('Object has not niimgs, could '
+                          'not report generate report.')
+
+    # def _classification_report(self):
+    #     headers = ['name', 'precision', 'recall', 'f1-score', 'support']
+    #     scores = {}
+
+    #     if hasattr(self, 'scores_'):
+    #         for classes_scores in self.scores_:
+    #             for class_name, score in zip(self.labelizer.classes_,
+    #                                          classes_scores):
+    #                 scores.setdefault(class_name, []).append(score)
+
+    #     data = [[k] + scores[k] for k in scores.keys()]
+    #     self.reporter.save_table(data, 'scores', headers)
