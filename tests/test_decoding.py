@@ -17,10 +17,14 @@ from sklearn.cross_validation import cross_val_score
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.multiclass import OneVsRestClassifier
+from sklearn.cluster import WardAgglomeration
+from sklearn.feature_extraction.image import grid_to_graph
+from sklearn.grid_search import GridSearchCV
+
 from nilearn.input_data import NiftiMasker
 
-from nignore.decoding_utils import Decoder
-from nignore.reporting_utils import Reporter
+from nignore.decoding import Decoder
+from nignore.reporting import Reporter
 
 
 def get_labels():
@@ -32,29 +36,12 @@ def get_labels():
 
 
 mask_array = nb.load(
-    '/home/ys218403/Data/tpm/grey_resampled.nii').get_data() > .3
-affine = nb.load('/home/ys218403/Data/tpm/grey_resampled.nii').get_affine()
+    '/volatile/tpm/grey_resampled.nii').get_data() > .3
+affine = nb.load('/volatile/tpm/grey_resampled.nii').get_affine()
 mask = nb.Nifti1Image(mask_array.astype('float'), affine=affine)
 nb.save(mask, '/tmp/mask.nii.gz')
 
-data_dir = '/home/ys218403/Data/brainpedia/neurospin/pinel2009twins'
-# names = [
-#     'visual_calculation_vs_rest',
-#     'vertical_checkerboard_vs_rest',
-#     'horizontal_checkerboard_vs_rest',
-#     'visual_sentences_vs_rest',
-#     'visual_left_motor_vs_rest']
-
-# names = [
-#     'computation_vs_math',
-#     'computation_vs_saccade',
-#     'digit_vs_scramble',
-#     'digit_vs_words',
-#     'face_vs_house',
-#     'French_vs_Korean',
-#     'words_vs_house',
-#     'French_vs_sound',
-#     'Korean_vs_sound']
+data_dir = '/volatile/brainpedia/neurospin/pinel2009twins'
 
 names = [
     'computation_vs_rest',
@@ -84,22 +71,35 @@ for image_dir in images:
         # target.append(name)
 
 if __name__ == '__main__':
-    memory = Memory('/havoc/cache')
+    memory = Memory('/havoc/cache', mmap_mode='r+')
 
     le = LabelEncoder()
     lb = LabelBinarizer()
     loader = NiftiMasker(mask='/tmp/mask.nii.gz',
                          memory=memory, memory_level=1)
     reporter = Reporter(report_dir='/tmp/reporter')
-    scaler = StandardScaler()
-    clf = LinearSVC()
 
-    # cv = ShuffleSplit(target.size)
-    # pipeline = Pipeline([('scaler', scaler), ('clf', clf)])
-    # decoder = Decoder(pipeline, loader, le, reporter)
+    cv = ShuffleSplit(len(target), n_iter=5)
+    Cs = [1e-3, 1e-2, 1e-1, 1., 10, 1e2, 1e3]
+
+    scaler = StandardScaler()
+    n_x, n_y, n_z = mask.shape
+    connectivity = grid_to_graph(n_x, n_y, n_z, mask=mask_array)
+    ward = WardAgglomeration(n_clusters=2000,
+                             connectivity=connectivity, memory=memory)
+    svc = LinearSVC(penalty='l1', dual=False)
+    # rand_svc = RandomizedWardClassifier(mask_array, n_iter=16,
+    #                                     memory=memory, n_jobs=-1)
+
+    pipe = Pipeline([('scaler', scaler), ('clf', svc)])
+    grid = GridSearchCV(pipe, param_grid={'clf__C': Cs},
+                        cv=cv, n_jobs=1)
+    grid.best_estimator_ = grid.estimator
+    ovr = OneVsRestClassifier(grid, n_jobs=1)
+
+    # decoder = Decoder(ovr, loader, lb, reporter)
     # decoder.fit(niimgs, target).score(niimgs, target)
 
-    ovr = OneVsRestClassifier(clf, n_jobs=-1)
-    pipeline = Pipeline([('scaler', scaler), ('clf', ovr)])
-    decoder = Decoder(pipeline, loader, lb, reporter)
+    # pipeline = Pipeline([('scaler', scaler), ('clf', clf)])
+    decoder = Decoder(ovr, loader, lb, reporter)
     decoder.fit(niimgs, target).score(niimgs, target)

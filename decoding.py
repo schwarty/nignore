@@ -1,6 +1,7 @@
 import warnings
 
 import numpy as np
+import nibabel as nb
 
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score
@@ -8,12 +9,17 @@ from sklearn.metrics import precision_recall_fscore_support
 from sklearn.multiclass import _ConstantPredictor
 from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import LinearSVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.feature_extraction.image import grid_to_graph
+from sklearn.cluster import WardAgglomeration
+from sklearn.cross_validation import ShuffleSplit
+from sklearn import clone
+from joblib import Memory, Parallel, delayed
 
 from nilearn.input_data import NiftiMasker
 
-# from reporting_utils import ClassificationMixin
-# from reporting_utils import NiimgMixin
-from reporting_utils import Reporter
+from reporting import Reporter
 
 
 def get_estimated(estimator, name='coef_'):
@@ -76,35 +82,9 @@ def _get_meta(estimator, name):
     return np.vstack(estimated_)
 
 
-class DecoderMixin(object):
-
-    def _get_niimgs(self):
-        estimated_ = get_estimated(self.estimator, self.estimated_name)
-        if estimated_.ndim == 2:
-            self.niimgs_ = [self.masker.inverse_transform(val)
-                            for val in estimated_]
-        else:
-            self.niimgs_ = [self.masker.inverse_transform(estimated_)]
-
-    def _get_scores(self, y_true, y_pred):
-        self.scores_ = []
-        if y_true.ndim == 2:
-            Y_true = y_true
-            Y_pred = y_pred
-            precisions = []
-            recalls = []
-            fscores = []
-            supports = []
-            for y_true, y_pred in zip(Y_true.T, Y_pred.T):
-                prec, rec, f1, supp = \
-                    precision_recall_fscore_support(y_true, y_pred)
-                precisions.append(prec)
-                recalls.append(rec)
-                fscores.append(f1)
-                supports.append(supp)
-            self.scores_ = [precisions, recalls, fscores, supports]
-        else:
-            self.scores_ = precision_recall_fscore_support(y_true, y_pred)
+def squeeze_niimg(niimg):
+    return nb.Nifti1Image(niimg.get_data().squeeze(),
+                          affine=niimg.get_affine())
 
 
 class Decoder(BaseEstimator):
@@ -121,10 +101,10 @@ class Decoder(BaseEstimator):
         self.estimated_name = estimated_name
 
     def fit(self, niimgs, target_names):
-        X = self.masker.fit_transform(niimgs)
         y = self.labelizer.fit_transform(target_names)
+        X = self.masker.fit_transform(niimgs, y)
         self.estimator.fit(X, y)
-        self._boundary_report()
+        self._plot_report()
         return self
 
     def predict(self, niimgs):
@@ -135,19 +115,23 @@ class Decoder(BaseEstimator):
     def score(self, niimgs, target_names):
         y = self.labelizer.transform(target_names)
         self.y_true_, y_pred = y, self.predict(niimgs)
-        self._classification_report()
+        self._eval_report()
         return accuracy_score(self.y_true_, self.y_pred_)
 
-    def _boundary_report(self):
+    def _plot_report(self):
         estimated_ = get_estimated(self.estimator, self.estimated_name)
         if estimated_.ndim == 2:
-            self.niimgs_ = [self.masker.inverse_transform(val)
+            self.niimgs_ = [squeeze_niimg(self.masker.inverse_transform(val))
                             for val in estimated_]
         else:
-            self.niimgs_ = [self.masker.inverse_transform(estimated_)]
-        for title, niimg in zip(self.labelizer.classes_, self.niimgs_):
-            self.reporter.boundary(niimg, title)
+            self.niimgs_ = [squeeze_niimg(
+                self.masker.inverse_transform(estimated_))]
 
-    def _classification_report(self):
-        self.reporter.evaluation(self.y_true_, self.y_pred_,
-                                 self.labelizer.classes_)
+        for title, niimg in zip(self.labelizer.classes_, self.niimgs_):
+            self.reporter.plot_map(niimg, title)
+        self.reporter.plot_contours(self.niimgs_, self.labelizer.classes_)
+        self.reporter.plot_labels(self.niimgs_, self.labelizer.classes_)
+
+    def _eval_report(self):
+        self.reporter.eval_classif(self.y_true_, self.y_pred_,
+                                   self.labelizer.classes_)
