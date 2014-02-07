@@ -611,10 +611,11 @@ def check_contrasts(contrasts, unvalid_sessions):
         for i, session in enumerate(contrasts[k]):
             if i not in unvalid_sessions:
                 curated_contrasts.setdefault(k, []).append(session)
+    contrasts = {}
     for k in curated_contrasts:
-        if not _is_valid_contrast(curated_contrasts[k]):
-            del curated_contrasts[k]
-    return curated_contrasts
+        if _is_valid_contrast(curated_contrasts[k]):
+            contrasts[k] = curated_contrasts[k]
+    return contrasts
 
 
 def _is_valid_contrast(con_val):
