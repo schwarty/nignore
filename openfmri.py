@@ -439,6 +439,17 @@ def check_run_key(study_dir):
             os.path.split(x)[1]
             for x in glob.glob(os.path.join(subject_dir, 'BOLD', '*'))]
         run_key.update(runs)
+        runs = [
+            os.path.split(x)[1]
+            for x in glob.glob(os.path.join(subject_dir, 'model',
+                                            'model001', 'BOLD', '*'))]
+        run_key.update(runs)
+        runs = [
+            os.path.split(x)[1]
+            for x in glob.glob(os.path.join(subject_dir, 'model',
+                                            'model001', 'onsets', '*'))]
+        run_key.update(runs)
+
     return sorted(run_key)
 
 
