@@ -1,6 +1,7 @@
 import os
 import re
 import csv
+import copy
 import shutil
 import warnings
 
@@ -91,8 +92,9 @@ def check_paths(paths):
 def contrasts_spec(contrasts, sessions_spec):
     new_contrasts = {}
     for k in contrasts:
+        contrast = copy.deepcopy(contrasts[k])
         for i, session_spec in enumerate(sessions_spec):
-            con = np.array(contrasts[k], copy=True)
+            con = np.array(contrast, copy=True)
             selection = np.ones(len(con), dtype='bool')
             selection[session_spec] = False
             con[selection] = 0
