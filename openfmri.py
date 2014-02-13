@@ -109,14 +109,14 @@ class Dumper(object):
     def transform(self, catalog, subjects_id):
         catalog_ = copy.deepcopy(catalog)
 
-        study_dir = make_dir(self.data_dir, self.study_id)
+        study_dir = make_dir(self.data_dir, self.study_id, strict=False)
         save_table(self.subject_key_,
                    os.path.join(study_dir, 'subject_key.txt'))
         save_table(self.task_key_, os.path.join(study_dir, 'task_key.txt'),
                     merge=self.merge_tasks)
         save_table({'TR': catalog[0]['tr']},
                    os.path.join(study_dir, 'scan_key.txt'))
-        model_dir = make_dir(study_dir, 'models', self.model_id)
+        model_dir = make_dir(study_dir, 'models', self.model_id, strict=False)
 
         save_task_contrasts(model_dir, catalog_[0], merge=self.merge_tasks)
         save_condition_key(model_dir, catalog_[0], merge=self.merge_tasks)
@@ -243,7 +243,7 @@ class IntraStats(object):
 
     def transform(self, catalog, subjects_id):
         catalog_ = copy.deepcopy(catalog)
-        study_dir = make_dir(self.data_dir, self.study_id)
+        study_dir = make_dir(self.data_dir, self.study_id, strict=False)
         save_table(self.subject_key_,
                    os.path.join(study_dir, 'subject_key.txt'))
         save_table(self.task_key_, os.path.join(study_dir, 'task_key.txt'),
@@ -251,7 +251,7 @@ class IntraStats(object):
         save_table({'TR': catalog_[0]['tr']},
                    os.path.join(study_dir, 'scan_key.txt'))
 
-        model_dir = make_dir(study_dir, 'models', self.model_id)
+        model_dir = make_dir(study_dir, 'models', self.model_id, strict=False)
         save_task_contrasts(model_dir, catalog_[0], merge=self.merge_tasks)
         save_condition_key(model_dir, catalog_[0], merge=self.merge_tasks)
 
@@ -425,7 +425,7 @@ def save_onsets(onsets_dir, doc, merge=False):
         for session_id, session in zip(run_key, doc['onsets']):
             if not merge:
                 del_dir(onsets_dir, session_id)
-            session_dir = make_dir(onsets_dir, session_id)
+            session_dir = make_dir(onsets_dir, session_id, strict=False)
             for onset in session:
                 cond_id = onset[0]
                 values = [str(v) for v in onset[1:]]
@@ -439,7 +439,7 @@ def save_maps(model_dir, doc, resample=False,
               target_affine=None, target_shape=None):
     for dtype in ['c_maps', 't_maps']:
         if dtype in doc:
-            maps_dir = make_dir(model_dir, dtype)
+            maps_dir = make_dir(model_dir, dtype, strict=False)
             for key in doc[dtype]:
                 fname = '%s.nii.gz' % safe_name(key.lower())
                 img = nb.load(doc[dtype][key])
