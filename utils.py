@@ -51,10 +51,9 @@ def copy_file(src_file, dest_file, safe=True, strict=True):
 
 def globing(data_dir, *args, **kwargs):
     if kwargs.get('generator', False):
-        glober = glob.iglob
+        return glob.iglob(os.path.join(data_dir, *args))
     else:
-        glober = glob.glob
-    return glober(os.path.join(data_dir, *args))
+        return sorted(glob.glob(os.path.join(data_dir, *args)))
 
 
 def save_table(dict_obj, file_name, merge=False):
