@@ -2,16 +2,26 @@ import os
 import re
 import csv
 import copy
+import glob
 import shutil
 import warnings
 
 import numpy as np
 
 
-def make_dir(dir_path, *optional):
+def make_dir(dir_path, *optional, **kwargs):
+    safe = kwargs.get('safe', True)
+    strict = kwargs.get('strict', True)
+
     dir_path = os.path.join(dir_path, *optional)
-    if not os.path.exists(dir_path):
+    try:
         os.makedirs(dir_path)
+    except Exception, e:
+        if os.path.exists(dir_path) and not safe:
+            del_dir(dir_path, safe, strict)
+        elif os.path.exists(dir_path) and safe and strict:
+            raise e
+
     return dir_path
 
 
@@ -37,6 +47,14 @@ def copy_file(src_file, dest_file, safe=True, strict=True):
     if os.path.exists(dest_file) and safe:
         raise Exception('Destination file %s already exists.' % dest_file)
     shutil.copyfile(src_file, dest_file)
+
+
+def globing(data_dir, *args, **kwargs):
+    if kwargs.get('generator', False):
+        glober = glob.iglob
+    else:
+        glober = glob.glob
+    return glober(os.path.join(data_dir, *args))
 
 
 def save_table(dict_obj, file_name, merge=False):

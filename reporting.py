@@ -24,6 +24,8 @@ from externals import tempita
 from externals import markdown
 from viz_utils import plot_contour_atlas, plot_label_atlas
 
+from utils import make_dir
+
 
 def _check_plot_map_params(params):
     if params is None:
@@ -54,10 +56,10 @@ def check_reporter(reporter):
 class Reporter(BaseEstimator):
 
     def __init__(self, report_dir=None,
-                 plot_map_params=None, save_params=None):
+                 plot_map_params=None, save_params=None, safe_dir=True):
         self.report_dir = report_dir or tempfile.mkdtemp(prefix='report_')
-        if not os.path.exists(self.report_dir):
-            os.makedirs(self.report_dir)
+
+        make_dir(self.report_dir, safe=safe_dir, strict=False)
         self.plot_map_params = _check_plot_map_params(plot_map_params)
         self.save_params = _check_save_params(save_params)
 

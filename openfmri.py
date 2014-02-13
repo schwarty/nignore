@@ -11,6 +11,7 @@ import numpy as np
 
 from sklearn.pipeline import Pipeline
 from nilearn.input_data import MultiNiftiMasker
+from nilearn.input_data import NiftiMasker
 from nilearn.image.resampling import resample_img
 # from nignore.spm import SPMIntraDataLoader, SPMIntraDesignLoader, load_preproc
 from nignore.spm import check_experimental_conditions
@@ -21,6 +22,7 @@ from nignore.linear_modeling import LinearModeler
 from nignore.utils import make_dir, del_dir, save_table, get_table, safe_name
 from nignore.parsing_utils import parse_path
 from nignore.parsing_utils import strip_prefix_filename
+from nignore.reporting import Reporter
 from joblib import Memory, Parallel, delayed
 from StringIO import StringIO
 
@@ -144,6 +146,59 @@ class Dumper(object):
         return self.fit(catalog, subjects_id).transform(catalog, subjects_id)
 
 
+class Loader(object):
+
+    def __init__(self, model_id):
+        self.model_id = model_id
+
+    def fit(self, subjects_dir, target=None):
+        study_dir = os.path.split(subjects_dir[0])[0]
+        self.study_id_ = os.path.split(study_dir)[1]
+        self.run_key_ = check_run_key(study_dir)
+        self.task_contrasts_ = check_task_contrasts(
+            study_dir, self.model_id, self.run_key_)
+        self.condition_key_ = check_condition_key(study_dir, self.model_id)
+        self.scan_key_ = check_scan_key(study_dir)
+        self.task_key_ = get_table(os.path.join(study_dir, 'task_key.txt'))
+        self.model_key_ = get_table(os.path.join(study_dir, 'model_key.txt'))
+        self.orthogonalize_ = check_orthogonalize(study_dir, self.run_key_)
+        return self
+
+    def transform(self, subjects_dir, target=None):
+        catalog = []
+        for subject_dir in subjects_dir:
+            doc = {}
+            doc['subject_id'] = os.path.split(subject_dir)[1]
+            doc['tr'] = self.scan_key_['TR']
+            doc['conditions'] = self.condition_key_
+            doc['tasks'] = self.task_key_
+            bold_dir = os.path.join(
+                subject_dir, 'model', self.model_id, 'BOLD')
+            doc.update(check_preproc_bold(bold_dir, self.run_key_))
+
+            doc['contrasts'] = check_contrasts(
+                self.task_contrasts_, doc['unvalid_sessions'])
+            doc['runs'] = check_runs(self.run_key_, doc['unvalid_sessions'])
+            doc['onsets'] = check_onsets(subject_dir, self.model_id,
+                                         self.run_key_, self.condition_key_,
+                                         doc['unvalid_sessions'])
+            doc['orthogonalize'] = self.orthogonalize_
+            for dtype in ['z_maps', 'c_maps', 'effect_maps', 'var_maps']:
+                map_dir = os.path.join(
+                    subject_dir, 'model', self.model_id, dtype)
+                if os.path.exists(map_dir):
+                    paths = sorted(
+                        glob.glob(os.path.join(map_dir, '*.nii.gz')))
+                    labels = [
+                        os.path.split(p)[1].split('.nii.gz')[0] for p in paths]
+                    doc[dtype] = dict(zip(labels, paths))
+            catalog.append(doc)
+        return catalog
+
+    def fit_transform(self, subjects_dir, target=None):
+        return self.fit(subjects_dir, target).transform(subjects_dir, target)
+
+
 class IntraStats(object):
 
     def __init__(self, data_dir, study_id, model_id,
@@ -248,56 +303,71 @@ def _compute_glm(modeler, niimgs, design_matrices, contrasts):
     return modeler.contrast(contrasts)
 
 
+class GroupStats(object):
+
+    def __init__(self, data_dir, study_id, model_id, masker=NiftiMasker(),
+                 output_mean=True, resample=False, target_affine=None,
+                 target_shape=None, memory=Memory(cachedir=None), n_jobs=1):
+        self.data_dir = data_dir
+        self.study_id = study_id
+        self.model_id = model_id
+        self.masker = masker
+        self.resample = resample
+        self.target_affine = target_affine
+        self.target_shape = target_shape
+        self.memory = memory
+        self.n_jobs = n_jobs
+
+    def fit(self, catalog, subjects_id=None):
+        self.dtypes_ = set()
+        self.labels_ = set()
+        for doc in catalog:
+            for dtype in ['z_maps', 'c_maps', 'effect_maps', 'var_maps']:
+                if dtype in doc:
+                    self.dtypes_.add(dtype)
+                    self.labels_.update(doc[dtype].keys())
+
+        self.dtypes_ = sorted(self.dtypes_)
+        self.labels_ = sorted(self.labels_)
+
+        return self
+
+    def transform(self, catalog, subjects_id=None):
+        groups = {}
+        for dtype in self.dtypes_:
+            for label in self.labels_:
+                for doc in catalog:
+                    if label in doc[dtype]:
+                        groups.setdefault(label, {}).setdefault(
+                            dtype, []).append(doc[dtype][label])
+
+        Parallel(n_jobs=self.n_jobs)(
+            delayed(_compute_mean)(
+                self.data_dir, self.study_id, self.model_id,
+                self.masker, groups[label], label)
+            for label in groups)
+
+    def fit_transform(self, catalog, subjects_id=None):
+        return self.fit(catalog, subjects_id).transform(catalog, subjects_id)
+
+
+def _compute_mean(data_dir, study_id, model_id, masker, group, label):
+    for dtype in group.keys():
+        reporter = Reporter(
+            os.path.join(data_dir, study_id, 'group', model_id, dtype),
+            plot_map_params={'percentile': 96})
+        data = [nb.load(niimg).get_data().ravel() for niimg in group[dtype]]
+        affine = nb.load(niimg).get_affine()
+        shape = nb.load(niimg).shape
+        niimg = nb.Nifti1Image(np.mean(data, axis=0).reshape(shape), affine)
+        reporter.plot_map(niimg, label)
+
+
 def _resample_img(path, target_affine=None, target_shape=None,
                   interpolation='continuous'):
     img = resample_img(path, target_affine, target_shape,
                        interpolation, copy=False)
     nb.save(img, path)
-
-
-class Loader(object):
-
-    def __init__(self, model_id):
-        self.model_id = model_id
-
-    def fit(self, subjects_dir, target=None):
-        study_dir = os.path.split(subjects_dir[0])[0]
-        self.study_id_ = os.path.split(study_dir)[1]
-        self.run_key_ = check_run_key(study_dir)
-        self.task_contrasts_ = check_task_contrasts(
-            study_dir, self.model_id, self.run_key_)
-        self.condition_key_ = check_condition_key(study_dir, self.model_id)
-        self.scan_key_ = check_scan_key(study_dir)
-        self.task_key_ = get_table(os.path.join(study_dir, 'task_key.txt'))
-        self.model_key_ = get_table(os.path.join(study_dir, 'model_key.txt'))
-        self.orthogonalize_ = check_orthogonalize(study_dir, self.run_key_)
-        return self
-
-    def transform(self, subjects_dir, target=None):
-        catalog = []
-        for subject_dir in subjects_dir:
-            doc = {}
-            doc['subject_id'] = os.path.split(subject_dir)[1]
-            doc['tr'] = self.scan_key_['TR']
-            doc['conditions'] = self.condition_key_
-            doc['tasks'] = self.task_key_
-            bold_dir = os.path.join(
-                subject_dir, 'model', self.model_id, 'BOLD')
-            doc.update(check_preproc_bold(bold_dir, self.run_key_))
-
-            doc['contrasts'] = check_contrasts(
-                self.task_contrasts_, doc['unvalid_sessions'])
-            doc['runs'] = check_runs(self.run_key_, doc['unvalid_sessions'])
-            doc['onsets'] = check_onsets(subject_dir, self.model_id,
-                                         self.run_key_, self.condition_key_,
-                                         doc['unvalid_sessions'])
-
-            doc['orthogonalize'] = self.orthogonalize_
-            catalog.append(doc)
-        return catalog
-
-    def fit_transform(self, subjects_dir, target=None):
-        return self.fit(subjects_dir, target).transform(subjects_dir, target)
 
 
 def save_condition_key(model_dir, doc, merge=False):
@@ -596,7 +666,7 @@ def check_preproc_bold(bold_dir, run_key):
     subject_id = bold_dir.split(os.path.sep)[-4]
 
     if doc['swabold'] == []:
-        raise Exception('Subject %s does not have preproc bold.' % subject_id)
+        warnings.warn('Subject %s does not have preproc bold.' % subject_id)
 
     if sessions != run_key:
         warnings.warn('Subject %s sessions -- %s -- differ '
