@@ -494,10 +494,10 @@ def save_raw(subject_dir, doc):
                 img = nb.concat_images(session_data)
             else:
                 img = nb.load(session_data)
-            session_dir = make_dir(subject_dir, 'BOLD', label)
+            session_dir = make_dir(subject_dir, 'BOLD', label, strict=False)
             nb.save(img, os.path.join(session_dir, 'bold.nii.gz'))
     if 'anatomy' in doc:
-        anat_dir = make_dir(subject_dir, 'anatomy')
+        anat_dir = make_dir(subject_dir, 'anatomy', strict=False)
         img = nb.load(doc['anatomy'])
         nb.save(img, os.path.join(anat_dir, 'highres001.nii.gz'))
 

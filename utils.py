@@ -11,7 +11,7 @@ import numpy as np
 
 def make_dir(dir_path, *optional, **kwargs):
     safe = kwargs.get('safe', True)
-    strict = kwargs.get('strict', True)
+    strict = kwargs.get('strict', False)
 
     dir_path = os.path.join(dir_path, *optional)
     try:
