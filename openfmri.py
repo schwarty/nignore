@@ -148,8 +148,9 @@ class Dumper(object):
 
 class Loader(object):
 
-    def __init__(self, model_id):
+    def __init__(self, model_id, ignore=None):
         self.model_id = model_id
+        self.ignore = ignore
 
     def fit(self, subjects_dir, target=None):
         study_dir = os.path.split(subjects_dir[0])[0]
@@ -173,9 +174,15 @@ class Loader(object):
             doc['conditions'] = self.condition_key_
             doc['tasks'] = self.task_key_
             bold_dir = os.path.join(
+                subject_dir, 'BOLD')
+            doc.update(check_bold(bold_dir, self.run_key_, 'bold'))
+            bold_dir = os.path.join(
                 subject_dir, 'model', self.model_id, 'BOLD')
-            doc.update(check_preproc_bold(bold_dir, self.run_key_))
-
+            doc.update(check_bold(bold_dir, self.run_key_, 'swabold'))
+            doc['anatomy'] = check_anatomy(
+                os.path.join(subject_dir, 'anatomy'))
+            doc['wmanatomy'] = check_anatomy(
+                os.path.join(subject_dir, 'model', self.model_id, 'anatomy'))
             doc['contrasts'] = check_contrasts(
                 self.task_contrasts_, doc['unvalid_sessions'])
             doc['runs'] = check_runs(self.run_key_, doc['unvalid_sessions'])
@@ -192,7 +199,14 @@ class Loader(object):
                     labels = [
                         os.path.split(p)[1].split('.nii.gz')[0] for p in paths]
                     doc[dtype] = dict(zip(labels, paths))
+
+            if self.ignore is not None:
+                for ignore_key in self.ignore:
+                    if ignore_key in doc:
+                        del doc[ignore_key]
+
             catalog.append(doc)
+
         return catalog
 
     def fit_transform(self, subjects_dir, target=None):
@@ -636,10 +650,10 @@ def check_orthogonalize(study_dir, run_key):
     return orthogonalize
 
 
-def check_preproc_bold(bold_dir, run_key):
+def check_bold(bold_dir, run_key, bold_key):
     sessions = []
     doc = {}
-    doc['swabold'] = []
+    doc[bold_key] = []
     doc['motion'] = []
     doc['n_scans'] = []
     doc['unvalid_sessions'] = []
@@ -650,29 +664,38 @@ def check_preproc_bold(bold_dir, run_key):
             sessions.append(os.path.split(session_dir)[1])
             bold = os.path.join(session_dir, 'bold.nii.gz')
             n_scan = nb.load(bold).shape[-1]
-            doc['swabold'].append(bold)
+            doc[bold_key].append(bold)
             doc['n_scans'].append(n_scan)
-            with open(os.path.join(session_dir, 'motion.txt')) as f:
-                regs = np.fromstring(f.read().replace('\t', ' '), sep=' ')
-                regs = regs.reshape(regs.shape[0] / 6, 6)
-                if regs.shape[0] != n_scan:
-                    raise Exception('n_scans=%s differs from '
-                                    'n_timepoints=%s in motion file' % (
-                                        n_scan, regs.shape[0]))
-                doc['motion'].append(regs)
+
+            if os.path.exists(os.path.join(session_dir, 'motion.txt')):
+                with open(os.path.join(session_dir, 'motion.txt')) as f:
+                    regs = np.fromstring(f.read().replace('\t', ' '), sep=' ')
+                    regs = regs.reshape(regs.shape[0] / 6, 6)
+                    if regs.shape[0] != n_scan:
+                        raise Exception('n_scans=%s differs from '
+                                        'n_timepoints=%s in motion file' % (
+                                            n_scan, regs.shape[0]))
+                    doc['motion'].append(regs)
         else:
             doc['unvalid_sessions'].append(i)
 
     subject_id = bold_dir.split(os.path.sep)[-4]
 
-    if doc['swabold'] == []:
-        warnings.warn('Subject %s does not have preproc bold.' % subject_id)
-
+    if doc[bold_key] == []:
+        warnings.warn('Subject %s does not have %s bold.' % (
+            bold_key, subject_id))
     if sessions != run_key:
         warnings.warn('Subject %s sessions -- %s -- differ '
                       'from specification -- %s --' % (
                           subject_id, sessions, run_key))
     return doc
+
+
+def check_anatomy(anatomy_dir):
+    if os.path.exists(os.path.join(anatomy_dir, 'highres001_brain.nii.gz')):
+        return os.path.join(anatomy_dir, 'highres001_brain.nii.gz')
+    elif os.path.exists(os.path.join(anatomy_dir, 'highres001.nii.gz')):
+        return os.path.join(anatomy_dir, 'highres001.nii.gz')
 
 
 def check_contrasts(contrasts, unvalid_sessions):
