@@ -183,6 +183,8 @@ class Loader(object):
                 os.path.join(subject_dir, 'anatomy'))
             doc['wmanatomy'] = check_anatomy(
                 os.path.join(subject_dir, 'model', self.model_id, 'anatomy'))
+            doc['mask'] = os.path.join(subject_dir, 'model',
+                                       self.model_id, 'mask.nii.gz')
             doc['contrasts'] = check_contrasts(
                 self.task_contrasts_, doc['unvalid_sessions'])
             doc['runs'] = check_runs(self.run_key_, doc['unvalid_sessions'])
