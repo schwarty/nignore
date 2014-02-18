@@ -45,14 +45,35 @@ def get_intra_preproc(mat_file, work_dir, n_scans, memory=Memory(None)):
     mat = memory.cache(load_matfile)(mat_file)['SPM']
     preproc = {}
 
+    get_motion_file = False
+    if len(n_scans) > 1:
+        preproc['motion'] = []
+        for session in mat.Sess:
+            preproc['motion'].append(session.C.C.tolist())
+            if session.C.C.size == 0:
+                get_motion_file = True
+    else:
+        preproc['motion'] = [mat.Sess.C.C.tolist()]
+        if mat.Sess.C.C.size == 0:
+            get_motion_file = True
+
     swabold = check_paths(mat.xY.P)
     if len(nb.load(makeup_path(work_dir, swabold[0])).shape) == 4:
         swabold = np.unique(swabold)
     else:
         swabold = np.split(swabold, np.cumsum(n_scans)[:-1])
 
+    if get_motion_file:
+        preproc['motion'] = []
+
     for session in swabold:
         session_dir = find_data_dir(work_dir, check_path(session[0]))
+        if get_motion_file:
+            motion_file = glob.glob(os.path.join(session_dir, 'rp_*.txt'))[0]
+            motion = np.fromfile(motion_file, sep=' ')
+            motion = motion.reshape(motion.shape[0] / 6, 6)
+            preproc['motion'].append(motion)
+
         if isinstance(session, (list, np.ndarray)):
             scans = [os.path.join(session_dir, os.path.split(scan)[1].strip())
                      for scan in session]
@@ -67,12 +88,7 @@ def get_intra_preproc(mat_file, work_dir, n_scans, memory=Memory(None)):
                 strip_prefix_filename(session, 2))
             preproc.setdefault('bold', []).append(
                 strip_prefix_filename(session, 3))
-    if len(n_scans) > 1:
-        preproc['motion'] = []
-        for session in mat.Sess:
-            preproc['motion'].append(session.C.C.tolist())
-    else:
-        preproc['motion'] = [mat.Sess.C.C.tolist()]
+
     return preproc
 
 

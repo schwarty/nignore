@@ -505,7 +505,7 @@ def save_raw(subject_dir, doc):
         run_key = doc['runs']
         for label, session_data in zip(run_key, doc['bold']):
             if isinstance(session_data, (list, np.ndarray)):
-                img = nb.concat_images(session_data)
+                img = nb.concat_images(session_data, check_affines=False)
             else:
                 img = nb.load(session_data)
             session_dir = make_dir(subject_dir, 'BOLD', label, strict=False)
