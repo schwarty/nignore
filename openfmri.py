@@ -99,7 +99,7 @@ class Dumper(object):
     def fit(self, catalog, subjects_id):
         doc = catalog[0]
         self.task_contrasts_ = doc.get('contrasts')
-        self.condition_key_ = check_experimental_conditions(catalog)
+        self.condition_key_ = doc.get('conditions')
         self.run_key_ = doc.get('runs')
         self.task_key_ = doc.get('tasks')
         self.subject_key_ = dict(
