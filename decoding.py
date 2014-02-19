@@ -70,7 +70,7 @@ def _get_meta(estimator, name, inverse):
     shape = None
 
     for estimator in estimator.estimators_:
-        estimated = get_estimated(estimator, name=name, inverse)
+        estimated = get_estimated(estimator, name=name, inverse=inverse)
         if shape is None and estimated is not None:
             shape = estimated.shape
         estimated_.append(estimated)
