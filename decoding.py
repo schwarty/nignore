@@ -127,10 +127,12 @@ class Decoder(BaseEstimator):
             self.niimgs_ = [squeeze_niimg(
                 self.masker.inverse_transform(estimated_))]
 
-        for title, niimg in zip(self.labelizer.classes_, self.niimgs_):
+        labels = get_estimated(self.labelizer, 'classes_')
+
+        for title, niimg in zip(labels, self.niimgs_):
             self.reporter.plot_map(niimg, title)
-        self.reporter.plot_contours(self.niimgs_, self.labelizer.classes_)
-        self.reporter.plot_labels(self.niimgs_, self.labelizer.classes_)
+        self.reporter.plot_contours(self.niimgs_, labels)
+        self.reporter.plot_labels(self.niimgs_, labels)
 
     def _eval_report(self):
         self.reporter.eval_classif(self.y_true_, self.y_pred_,
