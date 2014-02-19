@@ -22,15 +22,15 @@ from nilearn.input_data import NiftiMasker
 from reporting import Reporter
 
 
-def get_estimated(estimator, name='coef_'):
+def get_estimated(estimator, name='coef_', inverse=True):
     if hasattr(estimator, 'estimators_'):
-        estimated_ = _get_meta(estimator, name, )
+        estimated_ = _get_meta(estimator, name, inverse)
     elif hasattr(estimator, 'best_estimator_'):
-        estimated_ = _get_grid_search(estimator, name)
+        estimated_ = _get_grid_search(estimator, name, inverse)
     elif hasattr(estimator, 'steps'):
-        estimated_ = _get_pipeline(estimator, name)
+        estimated_ = _get_pipeline(estimator, name, inverse)
     elif hasattr(estimator, name.split('.')[0]):
-        estimated_ = _get_base(estimator, name)
+        estimated_ = _get_base(estimator, name, inverse)
     elif isinstance(estimator, _ConstantPredictor):
         estimated_ = None
     else:
@@ -38,17 +38,17 @@ def get_estimated(estimator, name='coef_'):
     return estimated_
 
 
-def _get_grid_search(grid_search, name):
+def _get_grid_search(grid_search, name, inverse):
     estimator = grid_search.best_estimator_
-    return get_estimated(estimator, name)
+    return get_estimated(estimator, name, inverse)
 
 
-def _get_pipeline(pipeline, name):
+def _get_pipeline(pipeline, name, inverse):
     estimator = pipeline.steps[-1][1]
-    estimated_ = get_estimated(estimator, name)
+    estimated_ = get_estimated(estimator, name, inverse)
     if len(pipeline.steps) == 1:
         return estimated_
-    else:
+    elif inverse:
         estimated_t = np.array(estimated_, copy=True)
         for name, step in pipeline.steps[:-1][::-1]:
             estimated_t = step.inverse_transform(estimated_t)
@@ -56,7 +56,7 @@ def _get_pipeline(pipeline, name):
     return estimated_
 
 
-def _get_base(estimator, name):
+def _get_base(estimator, name, inverse):
     if hasattr(estimator, name.split('.')[0]):
         return reduce(getattr, name.split('.'), estimator)
     else:
@@ -65,12 +65,12 @@ def _get_base(estimator, name):
             'have an attribute called %s' % (estimator, name))
 
 
-def _get_meta(estimator, name):
+def _get_meta(estimator, name, inverse):
     estimated_ = []
     shape = None
 
     for estimator in estimator.estimators_:
-        estimated = get_estimated(estimator, name=name)
+        estimated = get_estimated(estimator, name=name, inverse)
         if shape is None and estimated is not None:
             shape = estimated.shape
         estimated_.append(estimated)
@@ -127,7 +127,7 @@ class Decoder(BaseEstimator):
             self.niimgs_ = [squeeze_niimg(
                 self.masker.inverse_transform(estimated_))]
 
-        labels = get_estimated(self.labelizer, 'classes_')
+        labels = get_estimated(self.labelizer, 'classes_', inverse=False)
 
         for title, niimg in zip(labels, self.niimgs_):
             self.reporter.plot_map(niimg, title)
