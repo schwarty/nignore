@@ -135,5 +135,6 @@ class Decoder(BaseEstimator):
         self.reporter.plot_labels(self.niimgs_, labels)
 
     def _eval_report(self):
+        labels = get_estimated(self.labelizer, 'classes_', inverse=False)
         self.reporter.eval_classif(self.y_true_, self.y_pred_,
-                                   self.labelizer.classes_)
+                                   labels)
