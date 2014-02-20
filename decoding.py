@@ -8,6 +8,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.multiclass import _ConstantPredictor
 from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import StandardScaler
 from sklearn.svm import LinearSVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
@@ -22,15 +23,15 @@ from nilearn.input_data import NiftiMasker
 from reporting import Reporter
 
 
-def get_estimated(estimator, name='coef_', inverse=True):
+def get_estimated(estimator, name='coef_', inverse=True, inverse_scaler=False):
     if hasattr(estimator, 'estimators_'):
-        estimated_ = _get_meta(estimator, name, inverse)
+        estimated_ = _get_meta(estimator, name, inverse, inverse_scaler)
     elif hasattr(estimator, 'best_estimator_'):
-        estimated_ = _get_grid_search(estimator, name, inverse)
+        estimated_ = _get_grid_search(estimator, name, inverse, inverse_scaler)
     elif hasattr(estimator, 'steps'):
-        estimated_ = _get_pipeline(estimator, name, inverse)
+        estimated_ = _get_pipeline(estimator, name, inverse, inverse_scaler)
     elif hasattr(estimator, name.split('.')[0]):
-        estimated_ = _get_base(estimator, name, inverse)
+        estimated_ = _get_base(estimator, name)
     elif isinstance(estimator, _ConstantPredictor):
         estimated_ = None
     else:
@@ -38,25 +39,26 @@ def get_estimated(estimator, name='coef_', inverse=True):
     return estimated_
 
 
-def _get_grid_search(grid_search, name, inverse):
+def _get_grid_search(grid_search, name, inverse, inverse_scaler):
     estimator = grid_search.best_estimator_
-    return get_estimated(estimator, name, inverse)
+    return get_estimated(estimator, name, inverse, inverse_scaler)
 
 
-def _get_pipeline(pipeline, name, inverse):
+def _get_pipeline(pipeline, name, inverse, inverse_scaler):
     estimator = pipeline.steps[-1][1]
-    estimated_ = get_estimated(estimator, name, inverse)
+    estimated_ = get_estimated(estimator, name, inverse, inverse_scaler)
     if len(pipeline.steps) == 1:
         return estimated_
     elif inverse:
         estimated_t = np.array(estimated_, copy=True)
         for name, step in pipeline.steps[:-1][::-1]:
-            estimated_t = step.inverse_transform(estimated_t)
+            if not isinstance(step, StandardScaler) or inverse_scaler:
+                estimated_t = step.inverse_transform(estimated_t)
         return estimated_t
     return estimated_
 
 
-def _get_base(estimator, name, inverse):
+def _get_base(estimator, name):
     if hasattr(estimator, name.split('.')[0]):
         return reduce(getattr, name.split('.'), estimator)
     else:
@@ -65,12 +67,14 @@ def _get_base(estimator, name, inverse):
             'have an attribute called %s' % (estimator, name))
 
 
-def _get_meta(estimator, name, inverse):
+def _get_meta(estimator, name, inverse, inverse_scaler):
     estimated_ = []
     shape = None
 
     for estimator in estimator.estimators_:
-        estimated = get_estimated(estimator, name=name, inverse=inverse)
+        estimated = get_estimated(estimator, name=name,
+                                  inverse=inverse,
+                                  inverse_scaler=inverse_scaler)
         if shape is None and estimated is not None:
             shape = estimated.shape
         estimated_.append(estimated)
