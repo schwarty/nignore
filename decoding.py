@@ -104,6 +104,15 @@ class Decoder(BaseEstimator):
         y = self.labelizer.fit_transform(target_names)
         X = self.masker.fit_transform(niimgs, y)
         self.estimator.fit(X, y)
+        estimated_ = get_estimated(self.estimator, self.estimated_name)
+        if estimated_.ndim == 2:
+            niimgs = [squeeze_niimg(self.masker.inverse_transform(val))
+                      for val in estimated_]
+        else:
+            niimgs = [squeeze_niimg(self.masker.inverse_transform(estimated_))]
+        setattr(self.estimated_name, niimgs)
+        self.classes_ = get_estimated(
+            self.labelizer, 'classes_', inverse=False)
         self._plot_report()
         return self
 
@@ -119,20 +128,11 @@ class Decoder(BaseEstimator):
         return accuracy_score(self.y_true_, self.y_pred_)
 
     def _plot_report(self):
-        estimated_ = get_estimated(self.estimator, self.estimated_name)
-        if estimated_.ndim == 2:
-            self.niimgs_ = [squeeze_niimg(self.masker.inverse_transform(val))
-                            for val in estimated_]
-        else:
-            self.niimgs_ = [squeeze_niimg(
-                self.masker.inverse_transform(estimated_))]
-
-        labels = get_estimated(self.labelizer, 'classes_', inverse=False)
-
-        for title, niimg in zip(labels, self.niimgs_):
+        niimgs = getattr(self, self.estimated_name)
+        for title, niimg in zip(self.classes_, niimgs):
             self.reporter.plot_map(niimg, title)
-        self.reporter.plot_contours(self.niimgs_, labels)
-        self.reporter.plot_labels(self.niimgs_, labels)
+        self.reporter.plot_contours(niimgs, self.classes_)
+        self.reporter.plot_labels(niimgs, self.classes_)
 
     def _eval_report(self):
         labels = get_estimated(self.labelizer, 'classes_', inverse=False)
