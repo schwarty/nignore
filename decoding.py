@@ -110,7 +110,7 @@ class Decoder(BaseEstimator):
                       for val in estimated_]
         else:
             niimgs = [squeeze_niimg(self.masker.inverse_transform(estimated_))]
-        setattr(self.estimated_name, niimgs)
+        setattr(self, self.estimated_name, niimgs)
         self.classes_ = get_estimated(
             self.labelizer, 'classes_', inverse=False)
         self._plot_report()
