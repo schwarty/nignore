@@ -98,9 +98,9 @@ class Decoder(BaseEstimator):
                  labelizer=LabelEncoder(),
                  reporter=Reporter(),
                  estimated_name='coef_'):
-        self.estimator = estimator
-        self.masker = masker
-        self.labelizer = labelizer
+        self.estimator = clone(estimator)
+        self.masker = clone(masker)
+        self.labelizer = clone(labelizer)
         self.reporter = reporter
         self.estimated_name = estimated_name
 
