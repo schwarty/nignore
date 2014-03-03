@@ -37,6 +37,8 @@ def copy_dir(src_dir, dest_dir, safe=True, strict=True):
         return
     if os.path.exists(dest_dir) and not safe:
         del_dir(dest_dir)
+    if not os.path.exists(os.path.split(dest_dir)[0]):
+        make_dir(os.path.split(dest_dir)[0])
     shutil.copytree(src_dir, dest_dir)
 
 
@@ -123,4 +125,36 @@ def contrasts_spec(contrasts, sessions_spec):
             task_id, con_name = new_k.split('_', 1)
             new_k = '%s_run%03i_%s' % (task_id, i + 1, con_name)
             new_contrasts[new_k] = con.tolist()
+    return new_contrasts
+
+
+def add_baseline_regressor(contrasts):
+    new_contrasts = {}
+    for k in contrasts:
+        if 'vs_baseline' in k:
+            key = k.split('_vs_baseline')[0]
+        else:
+            key = k
+        for c in contrasts[k]:
+            if c is not None:
+                c = copy.deepcopy(c)
+                c.append(0)
+            new_contrasts.setdefault(key, []).append(c)
+
+    baseline_contrasts = {}
+    for k in new_contrasts:
+        task_id, run_id, _ = ('%s_' % k).split('_', 2)
+        if not run_id.startswith('run'):
+            key = '%s_baseline' % task_id
+        else:
+            key = '%s_%s_baseline' % (task_id, run_id)
+        baseline_contrasts[key] = []
+
+        for c in new_contrasts[k]:
+            if c is not None and not np.all(np.array(c) == 0):
+                c = [0] * len(c)
+                c[-1] = 1
+            baseline_contrasts[key].append(c)
+
+    new_contrasts.update(baseline_contrasts)
     return new_contrasts

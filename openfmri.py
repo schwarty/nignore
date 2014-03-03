@@ -20,11 +20,13 @@ from nignore.spm import check_timeseries
 from nignore.spm import IntraEncoder
 from nignore.linear_modeling import LinearModeler
 from nignore.utils import make_dir, del_dir, save_table, get_table, safe_name
+from nignore.utils import globing
 from nignore.parsing_utils import parse_path
 from nignore.parsing_utils import strip_prefix_filename
 from nignore.reporting import Reporter
 from joblib import Memory, Parallel, delayed
 from StringIO import StringIO
+
 
 # class SPMOpenfMRI(object):
 
@@ -61,8 +63,11 @@ class Designer(object):
         self.task_key_ = self.task_key
         if self.task_key is None and self.run_key_ is not None:
             self.task_key_ = check_tasks(self.run_key_)
-        self.subject_key_ = dict(
-            zip(subjects_id, [doc['subject_id'] for doc in catalog]))
+        if subjects_id is not None:
+            self.subject_key_ = dict(
+                zip(subjects_id, [doc['subject_id'] for doc in catalog]))
+        else:
+            self.subject_key_ = [doc['subject_id'] for doc in catalog]
         return self
 
     def transform(self, catalog, subjects_id):
@@ -77,7 +82,7 @@ class Designer(object):
                 doc['tasks'] = self.task_key_
         return catalog_
 
-    def fit_transform(self, catalog, subjects_id):
+    def fit_transform(self, catalog, subjects_id=None):
         return self.fit(catalog, subjects_id).transform(catalog, subjects_id)
 
 
@@ -102,16 +107,20 @@ class Dumper(object):
         self.condition_key_ = doc.get('conditions')
         self.run_key_ = doc.get('runs')
         self.task_key_ = doc.get('tasks')
-        self.subject_key_ = dict(
-            zip(subjects_id, [doc['subject_id'] for doc in catalog]))
+        if subjects_id is not None:
+            self.subject_key_ = dict(
+                zip(subjects_id, [doc['subject_id'] for doc in catalog]))
+        else:
+            self.subject_key_ = [doc['subject_id'] for doc in catalog]
         return self
 
     def transform(self, catalog, subjects_id):
         catalog_ = copy.deepcopy(catalog)
 
         study_dir = make_dir(self.data_dir, self.study_id, strict=False)
-        save_table(self.subject_key_,
-                   os.path.join(study_dir, 'subject_key.txt'))
+        if isinstance(self.subject_key_, dict):
+            save_table(self.subject_key_,
+                       os.path.join(study_dir, 'subject_key.txt'))
         save_table(self.task_key_, os.path.join(study_dir, 'task_key.txt'),
                     merge=self.merge_tasks)
         save_table({'TR': catalog[0]['tr']},
@@ -120,6 +129,9 @@ class Dumper(object):
 
         save_task_contrasts(model_dir, catalog_[0], merge=self.merge_tasks)
         save_condition_key(model_dir, catalog_[0], merge=self.merge_tasks)
+
+        if subjects_id is None:
+            subjects_id = [doc['subject_id'] for doc in catalog]
 
         Parallel(n_jobs=self.n_jobs)(delayed(save_maps)(
             os.path.join(study_dir, subject_id, 'model', self.model_id),
@@ -148,9 +160,10 @@ class Dumper(object):
 
 class Loader(object):
 
-    def __init__(self, model_id, ignore=None):
+    def __init__(self, model_id, ignore=None, get_baseline=False):
         self.model_id = model_id
         self.ignore = ignore
+        self.get_baseline = get_baseline
 
     def fit(self, subjects_dir, target=None):
         study_dir = os.path.split(subjects_dir[0])[0]
@@ -183,12 +196,28 @@ class Loader(object):
                 os.path.join(subject_dir, 'anatomy'))
             doc['wmanatomy'] = check_anatomy(
                 os.path.join(subject_dir, 'model', self.model_id, 'anatomy'))
+
+            unvalid_sessions = doc.get('unvalid_sessions', [])
             doc['contrasts'] = check_contrasts(
-                self.task_contrasts_, doc['unvalid_sessions'])
-            doc['runs'] = check_runs(self.run_key_, doc['unvalid_sessions'])
+                self.task_contrasts_, unvalid_sessions)
+            doc['runs'] = check_runs(self.run_key_, unvalid_sessions)
             doc['onsets'] = check_onsets(subject_dir, self.model_id,
                                          self.run_key_, self.condition_key_,
-                                         doc['unvalid_sessions'])
+                                         unvalid_sessions)
+            if self.get_baseline:
+                tol = self.get_baseline \
+                    if isinstance(self.get_baseline, float) else 1e-2
+                baselines, self.condition_key_ = get_baseline_onsets(
+                    subject_dir, doc['onsets'], doc['n_scans'],
+                    doc['runs'], doc['conditions'], tol=tol)
+                doc['baseline_onsets'] = baselines
+                doc['conditions'] = self.condition_key_
+                onsets_with_baseline = []
+                for onsets, baseline in zip(doc['onsets'], baselines):
+                    onsets.extend(baseline)
+                    onsets_with_baseline.append(order_onsets(onsets))
+                doc['onsets'] = onsets_with_baseline
+
             doc['orthogonalize'] = self.orthogonalize_
             for dtype in ['z_maps', 'c_maps', 'effect_maps', 'var_maps']:
                 map_dir = os.path.join(
@@ -251,15 +280,19 @@ class IntraStats(object):
         self.condition_key_ = check_experimental_conditions(catalog)
         self.run_key_ = doc.get('runs')
         self.task_key_ = doc.get('tasks')
-        self.subject_key_ = dict(
-            zip(subjects_id, [doc['subject_id'] for doc in catalog]))
+        if subjects_id is not None:
+            self.subject_key_ = dict(
+                zip(subjects_id, [doc['subject_id'] for doc in catalog]))
+        else:
+            self.subject_key_ = [doc['subject_id'] for doc in catalog]
         return self
 
     def transform(self, catalog, subjects_id):
         catalog_ = copy.deepcopy(catalog)
         study_dir = make_dir(self.data_dir, self.study_id, strict=False)
-        save_table(self.subject_key_,
-                   os.path.join(study_dir, 'subject_key.txt'))
+        if isinstance(self.subject_key_, dict):
+            save_table(self.subject_key_,
+                       os.path.join(study_dir, 'subject_key.txt'))
         save_table(self.task_key_, os.path.join(study_dir, 'task_key.txt'),
                    merge=self.merge_tasks)
         save_table({'TR': catalog_[0]['tr']},
@@ -277,6 +310,9 @@ class IntraStats(object):
                                      n_jobs=n_jobs)
 
         all_niimgs = self.encoder_.fit_transform(catalog_, subjects_id)
+
+        if subjects_id is None:
+            subjects_id = [doc['subject_id'] for doc in catalog]
 
         outputs = Parallel(n_jobs=self.n_jobs)(
             delayed(_compute_glm)(
@@ -655,8 +691,8 @@ def check_bold(bold_dir, run_key, bold_key):
     doc = {}
     doc[bold_key] = []
     doc['motion'] = []
-    doc['n_scans'] = []
-    doc['unvalid_sessions'] = []
+    n_scans = []
+    unvalid_sessions = []
 
     for i, session_id in enumerate(run_key):
         session_dir = os.path.join(bold_dir, session_id)
@@ -665,7 +701,7 @@ def check_bold(bold_dir, run_key, bold_key):
             bold = os.path.join(session_dir, 'bold.nii.gz')
             n_scan = nb.load(bold).shape[-1]
             doc[bold_key].append(bold)
-            doc['n_scans'].append(n_scan)
+            n_scans.append(n_scan)
 
             if os.path.exists(os.path.join(session_dir, 'motion.txt')):
                 with open(os.path.join(session_dir, 'motion.txt')) as f:
@@ -677,13 +713,16 @@ def check_bold(bold_dir, run_key, bold_key):
                                             n_scan, regs.shape[0]))
                     doc['motion'].append(regs)
         else:
-            doc['unvalid_sessions'].append(i)
+            unvalid_sessions.append(i)
 
     subject_id = bold_dir.split(os.path.sep)[-4]
-
+    if n_scans != []:
+        doc['n_scans'] = n_scans
     if doc[bold_key] == []:
         warnings.warn('Subject %s does not have %s bold.' % (
-            bold_key, subject_id))
+            subject_id, bold_key))
+    else:
+        doc['unvalid_sessions'] = unvalid_sessions
     if sessions != run_key:
         warnings.warn('Subject %s sessions -- %s -- differ '
                       'from specification -- %s --' % (
@@ -728,6 +767,35 @@ def check_runs(run_key, unvalid_sessions):
     return curated_run_key
 
 
+def get_baseline_onsets(subject_dir, onsets, n_scans, run_key,
+                        condition_key, tol=1e-2):
+    study_dir = os.path.split(subject_dir)[0]
+    tr = check_scan_key(study_dir)['TR']
+    baseline_onsets = []
+    condition_key = condition_key[:]
+    labels = set()
+    for i, session_onsets in enumerate(onsets):
+        task_id, run_id = run_key[i].split('_')
+        frametimes = np.linspace(0, (n_scans[i] - 1) * tr, n_scans[i])
+        timing = [frametimes[0]]
+        names = set()
+        for o in session_onsets:
+            timing.append(o[1])
+            timing.append(o[1] + o[2])
+            names.add(o[0])
+        timing.append(frametimes[-1])
+        baseline = []
+        names = sorted(names)
+        label = 'cond%03i' % (int(names[-1].split('cond')[1]) + 1)
+        for t0, t1 in zip(timing[::2], timing[1::2]):
+            if t1 - t0 > tol:
+                baseline.append((label, t0, t1 - t0, 1.))
+        baseline_onsets.append(baseline)
+        labels.add('%s_%s_baseline' % (task_id, label))
+    condition_key.extend(labels)
+    return baseline_onsets, sorted(condition_key)
+
+
 def glob_subjects_dirs(pattern, ignore=None, restrict=None):
     if ignore is None:
         ignore = []
@@ -742,3 +810,14 @@ def glob_subjects_dirs(pattern, ignore=None, restrict=None):
         else:
             doc.setdefault('ignored_subjects', []).append(sid)
     return doc
+
+
+def order_onsets(onsets):
+    conditions_onsets = np.array([onset[1:] for onset in onsets])
+    conditions_labels = np.array([onset[0] for onset in onsets])
+    order = np.argsort(conditions_onsets[:, 0])
+    onsets = []
+    for e in np.hstack([conditions_labels[:, None][order],
+                        conditions_onsets[order]]):
+        onsets.append((e[0], float(e[1]), float(e[2]), float(e[3])))
+    return onsets
