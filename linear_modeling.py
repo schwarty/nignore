@@ -169,4 +169,5 @@ class LinearModeler(object):
 
 def _fit_glm(X, Y, glm_model):
     glm = GeneralLinearModel(X)
-    return glm.fit(Y, model=glm_model)
+    glm.fit(Y, model=glm_model)
+    return glm
