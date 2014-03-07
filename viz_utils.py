@@ -3,6 +3,7 @@ matplotlib.use('Agg')
 
 import numpy as np
 import pylab as pl
+import nibabel as nb
 
 # Utilities for colormaps
 from matplotlib import cm as _cm
