@@ -87,13 +87,17 @@ class Reporter(BaseEstimator):
         return path
 
     def plot_contours(self, niimgs, labels):
-        plot_contour_atlas(niimgs, labels)
+        img = plot_contour_atlas(niimgs, labels)
+        nb.save(img, os.path.join(
+            self.report_dir, 'contour_atlas.nii.gz'))
         pl.savefig(os.path.join(
             self.report_dir, 'contour_atlas.png'), **self.save_params)
         pl.close('all')
 
     def plot_labels(self, niimgs, labels):
-        plot_label_atlas(niimgs, labels)
+        img = plot_label_atlas(niimgs, labels)
+        nb.save(img, os.path.join(
+            self.report_dir, 'label_atlas.nii.gz'))
         pl.savefig(os.path.join(
             self.report_dir, 'label_atlas.png'), **self.save_params)
         pl.close('all')
