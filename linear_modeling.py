@@ -11,7 +11,7 @@ from nipy.labs.viz_tools import cm
 from nilearn.input_data import NiftiMasker, MultiNiftiMasker
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.cross_validation import LeaveOneLabelOut
-from joblib import Parallel, delayed
+from joblib import Memory, Parallel, delayed
 
 from reporting import Reporter, check_reporter
 
@@ -64,7 +64,8 @@ class LinearModeler(object):
                  # encoder=LabelBinarizer(),
                  glm_model='ols', hrf_model='canonical with derivative',
                  contrast_type='t', output_z=True, output_stat=False,
-                 output_effects=False, output_variance=False):
+                 output_effects=False, output_variance=False,
+                 memory=Memory(cachedir=None)):
         self.masker = masker
         self.reporter = check_reporter(reporter)
         # self.encoder = encoder
@@ -75,6 +76,7 @@ class LinearModeler(object):
         self.output_stat = output_stat
         self.output_effects = output_effects
         self.output_variance = output_variance
+        self.memory = memory
 
     def fit(self, niimgs, design_matrices):
         data = self.masker.fit_transform(niimgs)
@@ -82,9 +84,10 @@ class LinearModeler(object):
 
         for session_data, design_matrix in zip(data, design_matrices):
             if not session_data is None and not design_matrix is None:
-                glm = GeneralLinearModel(design_matrix)
-                glm.fit(session_data, model=self.glm_model)
-                self.glm_.append(glm)
+                # glm = GeneralLinearModel(design_matrix)
+                # glm.fit(session_data, model=self.glm_model)
+                self.glm_.append(self.memory.cache(_fit_glm)(
+                    design_matrix, session_data, self.glm_model))
 
     def _contrast(self, contrast_id, contrast):
         contrast_ = None
@@ -162,3 +165,9 @@ class LinearModeler(object):
         # self.reporter.plot_labels(niimgs, labels)
         self.reporter.plot_map(get_loader(self.masker).mask_img_, 'mask')
         return outputs
+
+
+def _fit_glm(X, Y, glm_model):
+    glm = GeneralLinearModel(X)
+    glm.fit(Y, model=glm_model)
+    return glm

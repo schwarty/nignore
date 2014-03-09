@@ -3,6 +3,7 @@ matplotlib.use('Agg')
 
 import numpy as np
 import pylab as pl
+import nibabel as nb
 
 # Utilities for colormaps
 from matplotlib import cm as _cm
@@ -78,6 +79,7 @@ def plot_contour_atlas(niimgs, labels, cut_coords=None,
               prop=dict(size=4), title='Labels',
               borderaxespad=0,
               bbox_to_anchor=(1 / .85, .5))
+    return nb.Nifti1Image(atlas, affine=affine)
 
 
 def plot_label_atlas(niimgs, labels, cut_coords=None, title=None):
@@ -85,6 +87,7 @@ def plot_label_atlas(niimgs, labels, cut_coords=None, title=None):
     n_maps = len(niimgs)
 
     data = np.array([niimg.get_data() for niimg in niimgs])
+    affine = niimgs[0].get_affine()
     mask = np.any(data, axis=0)
     atlas = np.ones(mask.shape, dtype='int') * -1
     # atlas[mask] = np.argmax(np.abs(data), axis=0)[mask]
@@ -92,7 +95,7 @@ def plot_label_atlas(niimgs, labels, cut_coords=None, title=None):
     colors = (np.arange(n_maps) + 1) / float(n_maps)
     colors = np.hstack([colors, [0]])
     slicer.plot_map(np.ma.masked_equal(colors[atlas], 0),
-                    niimgs[0].get_affine(),
+                    affine,
                     cmap=pl.cm.spectral, )
 
     legend_lines = [pl.Line2D([0, 0], [0, 0],
@@ -105,6 +108,7 @@ def plot_label_atlas(niimgs, labels, cut_coords=None, title=None):
               prop=dict(size=4), title='Labels',
               borderaxespad=0,
               bbox_to_anchor=(1 / .85, .5))
+    return nb.Nifti1Image(atlas, affine=affine)
 
 
 if __name__ == '__main__':
