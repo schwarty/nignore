@@ -71,7 +71,8 @@ class Reporter(BaseEstimator):
                 data.ravel(), self.plot_map_params['percentile'])
             params.pop('percentile')
             params['threshold'] = threshold
-        vmax = np.abs(data).max()
+        # vmax = np.abs(data).max()
+        vmax = np.percentile(np.abs(data), 99)
         plot_map(data,
                  affine=niimg.get_affine(),
                  vmin=-vmax,
