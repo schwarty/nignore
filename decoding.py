@@ -125,6 +125,12 @@ class Decoder(BaseEstimator):
         self.y_pred_ = self.estimator.predict(X)
         return self.labelizer.inverse_transform(self.y_pred_)
 
+    def predict_proba(self, niimgs):
+        X = self.masker.transform(niimgs)
+        self.proba_ = self.estimator.predict_proba(X)
+        return self.proba_
+        # return self.labelizer.inverse_transform(self.y_pred_)
+
     def score(self, niimgs, target_names):
         y = self.labelizer.transform(target_names)
         self.y_true_, y_pred = y, self.predict(niimgs)
