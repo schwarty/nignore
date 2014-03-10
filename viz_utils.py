@@ -90,7 +90,8 @@ def plot_label_atlas(niimgs, labels, cut_coords=None, title=None):
     affine = niimgs[0].get_affine()
     mask = np.any(data, axis=0)
     atlas = np.ones(mask.shape, dtype='int') * -1
-    atlas[mask] = np.argmax(np.abs(data), axis=0)[mask]
+    # atlas[mask] = np.argmax(np.abs(data), axis=0)[mask]
+    atlas[mask] = np.argmax(data, axis=0)[mask]
     colors = (np.arange(n_maps) + 1) / float(n_maps)
     colors = np.hstack([colors, [0]])
     slicer.plot_map(np.ma.masked_equal(colors[atlas], 0),
