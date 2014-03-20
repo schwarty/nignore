@@ -32,7 +32,8 @@ def _check_plot_map_params(params):
         params = {}
     _params = {'cmap': cm.cold_hot,
                'slicer': 'z',
-               'cut_coords': 7}
+               'cut_coords': 7,
+               'black_bg': True}
     if 'threshold' not in params and 'percentile' not in params:
         _params['percentile'] = 90
     _params.update(params)
@@ -42,7 +43,9 @@ def _check_plot_map_params(params):
 def _check_save_params(params):
     if params is None:
         params = {}
-    _params = {'dpi': 200}
+    _params = {'dpi': 200,
+               'facecolor': 'k',
+               'edgecolor': 'k'}
     _params.update(params)
     return _params
 
