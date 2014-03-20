@@ -79,6 +79,7 @@ def plot_contour_atlas(niimgs, labels, cut_coords=None,
               prop=dict(size=4), title='Labels',
               borderaxespad=0,
               bbox_to_anchor=(1 / .85, .5))
+    atlas = np.rollaxis(atlas, 0, 4)
     return nb.Nifti1Image(atlas, affine=affine)
 
 
