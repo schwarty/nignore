@@ -66,6 +66,7 @@ class Reporter(BaseEstimator):
     def plot_map(self, niimg, title):
         data = niimg.get_data().squeeze()
         params = self.plot_map_params.copy()
+        fig = pl.figure(facecolor='k', edgecolor='k')
         if 'percentile' in self.plot_map_params:
             threshold = scoreatpercentile(
                 data.ravel(), self.plot_map_params['percentile'])
@@ -78,6 +79,7 @@ class Reporter(BaseEstimator):
                  vmin=-vmax,
                  vmax=vmax,
                  title=title,
+                 figure=fig,
                  **params)
         fname = title.replace(' ', '_').replace('/', '_')
         pl.savefig(os.path.join(
