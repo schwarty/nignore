@@ -11,7 +11,7 @@ out_dir = "/lotta/brainpedia/new_preproc_copy"
 
 preproc_dir = '/media/mobile/dartel_vs_newsegment'
 
-studies = globing(preproc_dir, '*')
+studies = globing(preproc_dir, '*_newsegment')
 
 for study_dir in studies:
     study_id = os.path.split(study_dir)[1]
@@ -21,6 +21,14 @@ for study_dir in studies:
         data_study_id = study_id
 
     out_study_dir = make_dir(out_dir, study_id)
+
+    copy_dir(os.path.join(data_dir, data_study_id, 'models'),
+             os.path.join(out_study_dir, 'models'), safe=False)
+
+    for txt_file in globing(data_dir, data_study_id, '*.txt'):
+        copy_file(txt_file, os.path.join(
+            out_study_dir,
+            os.path.split(txt_file)[1]), safe=False)
 
     for subject_dir in glob.glob(os.path.join(study_dir, 'sub???')):
         subject_id = os.path.split(subject_dir)[1]
@@ -32,7 +40,8 @@ for study_dir in studies:
 
         out_model = make_dir(
             out_study_dir, subject_id, 'model', 'model001')
-        copy_dir(onsets_dir, os.path.join(out_model, 'onsets'))
+        copy_dir(onsets_dir, os.path.join(out_model, 'onsets'), safe=False)
+
         out_anat = make_dir(out_model, 'anatomy')
         out_bold = make_dir(out_model, 'BOLD')
         anat_path = os.path.join(subject_dir, 'whighres001_brain.nii')
