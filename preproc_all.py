@@ -28,7 +28,7 @@ for input_dir in glob.glob(data_dir + '/*'):
     job['job_dir'] = job_dir
     job['job_name'] = 'preproc_%s' % study_id
     job['script'] = exec_path
-    job['options'] = '-O -n 12'
+    job['options'] = '-O -n 16'
 
     with open(os.path.join(module_dir, 'job_template.qsub')) as f:
         qsub = f.read() % job
