@@ -3,8 +3,8 @@ import glob
 
 module_dir = os.path.dirname(os.path.abspath(__file__))
 
-data_dir = '/storage/data/openfmri'
-base_out_dir = '/storage/workspace/yschwart/new_preproc'
+data_dir = '/storage/workspace/brainpedia/data'
+base_out_dir = '/storage/workspace/yschwart/keeporient_preproc'
 exec_path = '/storage/workspace/yschwart/python/pypreprocess/examples/openfmri_preproc.py'
 
 for input_dir in glob.glob(data_dir + '/*'):
@@ -12,7 +12,7 @@ for input_dir in glob.glob(data_dir + '/*'):
     job = {}
 
     study_id = os.path.split(input_dir)[1]
-    if study_id == 'ds113':
+    if study_id == 'ds113' or study_id == 'fBIRN':
         print 'skip'
         continue
 
@@ -28,7 +28,7 @@ for input_dir in glob.glob(data_dir + '/*'):
     job['job_dir'] = job_dir
     job['job_name'] = 'preproc_%s' % study_id
     job['script'] = exec_path
-    job['options'] = '-O -n 16'
+    job['options'] = '-n 48'
 
     with open(os.path.join(module_dir, 'job_template.qsub')) as f:
         qsub = f.read() % job
