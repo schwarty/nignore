@@ -159,7 +159,7 @@ if __name__ == '__main__':
             angry_contrasts[contrast_id] = contrast
         return angry_contrasts
 
-    for study_id in ['ds101']:
+    for study_id in ['cauvet2009muslang']:
         print study_id
 
         infos = glob_subjects_dirs('%s/%s/sub???' % (root_dir, study_id))
