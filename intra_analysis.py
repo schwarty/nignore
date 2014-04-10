@@ -146,6 +146,7 @@ def do_intra_analysis(masker, output_dir, niimgs, design_matrices, contrasts):
 if __name__ == '__main__':
     from nignore.openfmri import Loader, glob_subjects_dirs
     from nignore.spm import IntraEncoder
+    from nignore.utils import globing
 
     n_jobs = 48
 
@@ -172,7 +173,7 @@ if __name__ == '__main__':
             angry_contrasts[contrast_id] = contrast
         return angry_contrasts
 
-    for study_id in ['cauvet2009muslang']:
+    for study_id in globing(root_dir, '*'):
         print study_id
 
         infos = glob_subjects_dirs('%s/%s/sub???' % (root_dir, study_id))
