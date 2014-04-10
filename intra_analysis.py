@@ -134,12 +134,11 @@ if __name__ == '__main__':
     from nignore.spm import IntraEncoder
 
     n_jobs = 48
-    model_id = 'model002'
 
     root_dir = '/storage/workspace/yschwart/new_preproc'
     result_dir = '/storage/workspace/yschwart/new_intra_stats'
 
-    loader = Loader(model_id=model_id)
+    loader = Loader(model_id='model001')
     encoder = IntraEncoder()
 
     masker = MultiNiftiMasker(mask='mask.nii.gz', standardize=True,
@@ -169,7 +168,7 @@ if __name__ == '__main__':
         for i, subject_id in enumerate(infos['subjects']):
             print subject_id
             output_dir = '%s/%s/%s' % (result_dir, study_id, subject_id,
-                                       'model', model_id)
+                                       'model', 'model002')
             niimgs = subjects_niimgs[i]
             design_matrices = encoder.design_matrices_[i]
             contrasts = docs[i]['contrasts']
