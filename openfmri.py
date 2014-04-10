@@ -606,6 +606,9 @@ def check_task_contrasts(study_dir, model_id, run_key):
 
 def check_condition_key(study_dir, model_id):
     model_dir = os.path.join(study_dir, 'models', model_id)
+    if not os.path.exists(model_dir):
+        warnings.warn('Model dir does not exist: %s' % model_dir)
+        return []
     condition_key = []
 
     with open(os.path.join(model_dir, 'condition_key.txt')) as f:
@@ -625,6 +628,10 @@ def check_condition_key(study_dir, model_id):
 def check_scan_key(study_dir):
     """Parse scan_key file to get scanning information (currently only TR).
     """
+    if not os.path.exists(os.path.join(study_dir, 'scan_key.txt')):
+        warnings.warn('Scan key does not exist')
+        return {}
+
     scan_key = get_table(os.path.join(study_dir, 'scan_key.txt'))
     scan_key['TR'] = float(scan_key['TR'])
     return scan_key
