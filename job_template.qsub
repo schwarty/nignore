@@ -1,0 +1,9 @@
+#!/bin/bash
+#PBS -S /bin/bash
+#PBS -N %(job_name)s
+#PBS -l nodes=1:ppn=12
+#PBS -l walltime=48:00:00
+#PBS -d %(job_dir)s
+#PBS -q Cati_LowPrio
+
+%(script)s %(input_dir)s %(output_dir)s %(options)s
