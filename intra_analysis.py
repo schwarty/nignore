@@ -173,8 +173,9 @@ if __name__ == '__main__':
             angry_contrasts[contrast_id] = contrast
         return angry_contrasts
 
-    for study_dir in globing(root_dir, '*'):
-        study_id = os.path.split(study_dir)[1]
+    # for study_dir in globing(root_dir, '*'):
+    #     study_id = os.path.split(study_dir)[1]
+    for study_id in ['ds002']:
         print study_id
 
         infos = glob_subjects_dirs('%s/%s/sub???' % (root_dir, study_id))
@@ -202,7 +203,7 @@ if __name__ == '__main__':
         #         n_jobs=n_jobs)
         #     modeler.fit(niimgs, design_matrices)
         #     modeler.contrast(angry_contrasts)
-
+        stop
         Parallel(n_jobs=n_jobs)(delayed(do_intra_analysis)(
             masker=masker,
             output_dir='%s/%s/%s/%s/%s' % (
