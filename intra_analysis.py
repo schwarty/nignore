@@ -158,7 +158,7 @@ if __name__ == '__main__':
     masker = MultiNiftiMasker(mask='mask.nii.gz', standardize=True,
                               smoothing_fwhm=6, n_jobs=n_jobs)
 
-    def sanitize_contrast(contrast, insert_derivative=True):
+    def sanitize_contrast(contrasts, insert_derivative=True):
         angry_contrasts = {}
         for contrast_id in contrasts:
             contrast = []
