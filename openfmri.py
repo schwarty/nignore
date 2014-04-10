@@ -183,7 +183,7 @@ class Loader(object):
         for subject_dir in subjects_dir:
             doc = {}
             doc['subject_id'] = os.path.split(subject_dir)[1]
-            doc['tr'] = self.scan_key_['TR']
+            doc['tr'] = self.scan_key_.get('TR')
             doc['conditions'] = self.condition_key_
             doc['tasks'] = self.task_key_
             bold_dir = os.path.join(
