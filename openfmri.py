@@ -586,11 +586,11 @@ def check_task_contrasts(study_dir, model_id, run_key):
 
     reader = csv.reader(f, delimiter=' ', quotechar='"')
     for row in reader:
-        if not row[0].startswith('task'):
+        if not row[0].startswith('task0'):
             row = row.insert(0, 'task001')
         task_id = row[0]
         contrast_id = row[1]
-        if not contrast_id.startswith('task'):
+        if not contrast_id.startswith('task0'):
             contrast_id = '%s_%s' % (task_id, contrast_id)
         try:
             con_val = np.array(row[2:], dtype='float').tolist()
