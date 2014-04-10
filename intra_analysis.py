@@ -175,7 +175,7 @@ if __name__ == '__main__':
 
     # for study_dir in globing(root_dir, '*'):
     #     study_id = os.path.split(study_dir)[1]
-    for study_id in ['ds002']:
+    for study_id in ['ds005']:
         print study_id
 
         infos = glob_subjects_dirs('%s/%s/sub???' % (root_dir, study_id))
