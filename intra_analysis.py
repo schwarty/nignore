@@ -129,6 +129,20 @@ def check_contrast(con_val, n_regressors):
     return contrast_values
 
 
+def do_intra_analysis(masker, output_dir, niimgs, design_matrices, contrasts):
+    modeler = IntraLinearModel(
+        masker,
+        glm_model='ar1',
+        output_dir=output_dir,
+        target_affine=target_affine,
+        target_shape=target_shape,
+        output_effects=True,
+        output_variance=True,
+        n_jobs=1)
+    modeler.fit(niimgs, design_matrices)
+    modeler.contrast(contrasts)
+
+
 if __name__ == '__main__':
     from nignore.openfmri import Loader, glob_subjects_dirs
     from nignore.spm import IntraEncoder
@@ -165,24 +179,35 @@ if __name__ == '__main__':
         docs = loader.fit_transform(infos['subjects_dirs'], infos['subjects'])
         subjects_niimgs = encoder.fit_transform(docs, infos['subjects'])
 
-        for i, subject_id in enumerate(infos['subjects']):
-            print subject_id
-            output_dir = '%s/%s/%s/%s/%s' % (result_dir, study_id, subject_id,
-                                             'model', 'model002')
-            niimgs = subjects_niimgs[i]
-            design_matrices = encoder.design_matrices_[i]
-            contrasts = docs[i]['contrasts']
+        # for i, subject_id in enumerate(infos['subjects']):
+        #     print subject_id
+        #     output_dir = '%s/%s/%s/%s/%s' % (result_dir, study_id, subject_id,
+        #                                      'model', 'model002')
+        #     niimgs = subjects_niimgs[i]
+        #     design_matrices = encoder.design_matrices_[i]
+        #     contrasts = docs[i]['contrasts']
 
-            # insert zeros in con_val because there is a derivative
-            angry_contrasts = sanitize_contrast(contrasts)
-            modeler = IntraLinearModel(
-                masker,
-                glm_model='ar1',
-                output_dir=output_dir,
-                target_affine=target_affine,
-                target_shape=target_shape,
-                output_effects=True,
-                output_variance=True,
-                n_jobs=n_jobs)
-            modeler.fit(niimgs, design_matrices)
-            modeler.contrast(angry_contrasts)
+        #     # insert zeros in con_val because there is a derivative
+        #     angry_contrasts = sanitize_contrast(contrasts)
+        #     modeler = IntraLinearModel(
+        #         masker,
+        #         glm_model='ar1',
+        #         output_dir=output_dir,
+        #         target_affine=target_affine,
+        #         target_shape=target_shape,
+        #         output_effects=True,
+        #         output_variance=True,
+        #         n_jobs=n_jobs)
+        #     modeler.fit(niimgs, design_matrices)
+        #     modeler.contrast(angry_contrasts)
+
+        Parallel(n_jobs=n_jobs)(delayed(do_intra_analysis)(
+            masker=masker,
+            output_dir='%s/%s/%s/%s/%s' % (
+                result_dir, study_id, subject_id,
+                'model', 'model002')
+            niimgs=subjects_niimgs[i],
+            design_matrices=encoder.design_matrices_[i],
+            contrasts=sanitize_contrast(docs[i]['contrasts'])
+            for i, subject_id in enumerate(infos['subjects'])
+        ))
