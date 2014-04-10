@@ -167,8 +167,8 @@ if __name__ == '__main__':
 
         for i, subject_id in enumerate(infos['subjects']):
             print subject_id
-            output_dir = '%s/%s/%s' % (result_dir, study_id, subject_id,
-                                       'model', 'model002')
+            output_dir = '%s/%s/%s/%s/%s' % (result_dir, study_id, subject_id,
+                                             'model', 'model002')
             niimgs = subjects_niimgs[i]
             design_matrices = encoder.design_matrices_[i]
             contrasts = docs[i]['contrasts']
