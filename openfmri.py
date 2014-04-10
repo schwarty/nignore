@@ -220,7 +220,7 @@ class Loader(object):
                 doc['onsets'] = onsets_with_baseline
 
             doc['orthogonalize'] = self.orthogonalize_
-            for dtype in ['z_maps', 'c_maps', 'effect_maps', 'var_maps']:
+            for dtype in ['z_maps', 'c_maps', 'effect_maps', 'variance_maps']:
                 map_dir = os.path.join(
                     subject_dir, 'model', self.model_id, dtype)
                 if os.path.exists(map_dir):
