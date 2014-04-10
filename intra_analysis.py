@@ -156,7 +156,7 @@ if __name__ == '__main__':
     encoder = IntraEncoder()
 
     masker = MultiNiftiMasker(mask='mask.nii.gz', standardize=True,
-                              smoothing_fwhm=6, n_jobs=n_jobs)
+                              smoothing_fwhm=6, n_jobs=1)
 
     def sanitize_contrast(contrasts, insert_derivative=True):
         angry_contrasts = {}
