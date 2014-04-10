@@ -44,9 +44,6 @@ class IntraLinearModel(object):
         return self
 
     def _contrast(self, contrast_id, contrast_values):
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
-
         contrast = None
 
         n_regressors = [glm.X.shape[1] for glm in self.glm_]
@@ -91,11 +88,14 @@ class IntraLinearModel(object):
                         niimg,
                         target_affine=self.target_affine,
                         target_shape=self.target_shape)
+                output_dir = os.path.join(
+                    self.output_dir, '%s_maps' % estimate.rsplit('_')[0])
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                map_path = os.path.join(output_dir, '%s.nii.gz' % contrast_id)
+                niimg.to_filename(map_path)
+                outputs.append(map_path)
 
-                niimg_path = os.path.join(
-                    self.output_dir, '%s_map.nii.gz' % contrast_id)
-                niimg.to_filename(niimg_path)
-                outputs.append(niimg_path)
         return outputs
 
     def contrast(self, contrasts):
@@ -133,34 +133,33 @@ if __name__ == '__main__':
     from nignore.openfmri import Loader, glob_subjects_dirs
     from nignore.spm import IntraEncoder
 
-    n_jobs = 1
+    n_jobs = 48
+    model_id = 'model002'
 
-    root_dir = '/media/ys218403/mobile/brainpedia/preproc'
-    result_dir = '/home/ys218403/Data/intra_stats'
+    root_dir = '/storage/workspace/yschwart/new_preproc'
+    result_dir = '/storage/workspace/yschwart/new_intra_stats'
 
-    loader = Loader(model_id='model001')
+    loader = Loader(model_id=model_id)
     encoder = IntraEncoder()
+
     masker = MultiNiftiMasker(mask='mask.nii.gz', standardize=True,
                               smoothing_fwhm=6, n_jobs=n_jobs)
 
     def sanitize_contrast(contrast, insert_derivative=True):
         angry_contrasts = {}
         for contrast_id in contrasts:
-            if ('house_vs_baseline' in contrast_id
-                    or 'face_vs_baseline' in contrast_id
-                    or 'face_vs_house' in contrast_id):
-                contrast = []
-                for session_con in contrasts[contrast_id]:
-                    if session_con is not None:
-                        session_con = np.array(session_con)
-                        session_con = np.insert(
-                            session_con,
-                            np.arange(session_con.size) + 1, 0).tolist()
-                    contrast.append(session_con)
-                angry_contrasts[contrast_id] = contrast
+            contrast = []
+            for session_con in contrasts[contrast_id]:
+                if session_con is not None:
+                    session_con = np.array(session_con)
+                    session_con = np.insert(
+                        session_con,
+                        np.arange(session_con.size) + 1, 0).tolist()
+                contrast.append(session_con)
+            angry_contrasts[contrast_id] = contrast
         return angry_contrasts
 
-    for study_id in ['ds105']:
+    for study_id in ['ds101']:
         print study_id
 
         infos = glob_subjects_dirs('%s/%s/sub???' % (root_dir, study_id))
@@ -169,7 +168,8 @@ if __name__ == '__main__':
 
         for i, subject_id in enumerate(infos['subjects']):
             print subject_id
-            output_dir = '%s/%s/%s' % (result_dir, study_id, subject_id)
+            output_dir = '%s/%s/%s' % (result_dir, study_id, subject_id,
+                                       'model', model_id)
             niimgs = subjects_niimgs[i]
             design_matrices = encoder.design_matrices_[i]
             contrasts = docs[i]['contrasts']
