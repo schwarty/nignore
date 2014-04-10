@@ -181,6 +181,8 @@ if __name__ == '__main__':
                 output_dir=output_dir,
                 target_affine=target_affine,
                 target_shape=target_shape,
+                output_effects=True,
+                output_variance=True,
                 n_jobs=n_jobs)
             modeler.fit(niimgs, design_matrices)
             modeler.contrast(angry_contrasts)
