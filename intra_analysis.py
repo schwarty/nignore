@@ -173,8 +173,8 @@ if __name__ == '__main__':
             angry_contrasts[contrast_id] = contrast
         return angry_contrasts
 
-    for study_id in globing(root_dir, '*'):
-        print study_id
+    for study_dir in globing(root_dir, '*'):
+        study_id = os.path.split(study_dir)[1]
 
         infos = glob_subjects_dirs('%s/%s/sub???' % (root_dir, study_id))
         docs = loader.fit_transform(infos['subjects_dirs'], infos['subjects'])
