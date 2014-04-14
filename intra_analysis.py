@@ -20,6 +20,7 @@ class IntraLinearModel(object):
                  output_stat=False, output_effects=False,
                  output_variance=False, memory=Memory(cachedir=None),
                  target_affine=None, target_shape=None,
+                 model_tol=1e10,
                  n_jobs=1):
         self.masker = masker
         self.output_dir = output_dir
@@ -31,6 +32,7 @@ class IntraLinearModel(object):
         self.output_variance = output_variance
         self.target_affine = target_affine
         self.target_shape = target_shape
+        self.model_tol = model_tol
         self.memory = memory
         self.n_jobs = n_jobs
 
@@ -41,6 +43,10 @@ class IntraLinearModel(object):
                 design_matrix, session_data, self.glm_model)
             for design_matrix, session_data in zip(design_matrices, data)
             if not session_data is None and not design_matrix is None)
+        for i, design_matrix in enumerate(design_matrices):
+            sv = np.linalg.svd(design_matrix)[1]
+            if sv[0] / sv[-1] > self.model_tol:
+                self.glm_[i] = None
         return self
 
     def _contrast(self, contrast_id, contrast_values):
@@ -50,8 +56,9 @@ class IntraLinearModel(object):
         contrast_values = check_contrast(contrast_values, n_regressors)
 
         for i, (glm, con_val) in enumerate(zip(self.glm_, contrast_values)):
-            if con_val is None or np.all(con_val == 0):
-                pass  # print 'Contrast for session %d is null' % i
+            if con_val is None or np.all(con_val == 0) or glm is None:
+                # contrast null for session, or design_matrix ill conditioned
+                pass
             elif contrast is None:
                 contrast = glm.contrast(
                     con_val, contrast_type=self.contrast_type)
