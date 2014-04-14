@@ -157,8 +157,8 @@ if __name__ == '__main__':
 
     n_jobs = 48
 
-    root_dir = '/storage/workspace/yschwart/new_preproc'
-    result_dir = '/storage/workspace/yschwart/new_intra_stats'
+    root_dir = '/storage/workspace/yschwart/new_brainpedia/preproc'
+    result_dir = '/storage/workspace/yschwart/new_brainpedia/intra_stats'
 
     loader = Loader(model_id='model001')
     encoder = IntraEncoder()
