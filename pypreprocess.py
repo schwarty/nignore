@@ -5,13 +5,12 @@ import nibabel as nb
 
 from nignore.utils import make_dir, copy_file, globing, copy_dir
 
-data_dir = "/lotta/brainpedia/data"
-preproc_dir = "/lotta/brainpedia/new_preproc"
-out_dir = "/lotta/brainpedia/new_preproc_copy"
+data_dir = "/storage/workspace/yschwart/new_brainpedia/data"
+intra_dir = "/storage/workspace/brainpedia/intra_stats"
+preproc_dir = "/storage/workspace/yschwart/keeporient_preproc"
+out_dir = "/storage/workspace/yschwart/new_brainpedia/preproc"
 
-preproc_dir = '/media/mobile/dartel_vs_newsegment'
-
-studies = globing(preproc_dir, '*_newsegment')
+studies = globing(preproc_dir, 'pinel2009twins')
 
 for study_dir in studies:
     study_id = os.path.split(study_dir)[1]
@@ -22,8 +21,8 @@ for study_dir in studies:
 
     out_study_dir = make_dir(out_dir, study_id)
 
-    copy_dir(os.path.join(data_dir, data_study_id, 'models'),
-             os.path.join(out_study_dir, 'models'), safe=False)
+    copy_dir(os.path.join(intra_dir, data_study_id, 'models', 'model002'),
+             os.path.join(out_study_dir, 'models', 'model001'), safe=False)
 
     for txt_file in globing(data_dir, data_study_id, '*.txt'):
         copy_file(txt_file, os.path.join(
