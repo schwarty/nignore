@@ -52,7 +52,8 @@ class IntraLinearModel(object):
     def _contrast(self, contrast_id, contrast_values):
         contrast = None
 
-        n_regressors = [glm.X.shape[1] for glm in self.glm_]
+        n_regressors = [glm.X.shape[1] if glm is not None else 0
+                        for glm in self.glm_]
         contrast_values = check_contrast(contrast_values, n_regressors)
 
         for i, (glm, con_val) in enumerate(zip(self.glm_, contrast_values)):
