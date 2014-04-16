@@ -148,6 +148,7 @@ def do_intra_analysis(masker, output_dir, niimgs, design_matrices, contrasts):
         output_variance=True,
         n_jobs=1)
     modeler.fit(niimgs, design_matrices)
+    stop
     modeler.contrast(contrasts)
 
 
@@ -212,7 +213,7 @@ if __name__ == '__main__':
         #     modeler.fit(niimgs, design_matrices)
         #     modeler.contrast(angry_contrasts)
 
-        Parallel(n_jobs=n_jobs)(delayed(do_intra_analysis)(
+        Parallel(n_jobs=1)(delayed(do_intra_analysis)(
             masker=masker,
             output_dir='%s/%s/%s/%s/%s' % (
                 result_dir, study_id, subject_id,
