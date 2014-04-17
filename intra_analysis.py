@@ -9,7 +9,9 @@ from nilearn.input_data import NiftiMasker, MultiNiftiMasker
 from nilearn.image import resample_img
 from joblib import Memory, Parallel, delayed
 
-from _globals import target_affine, target_shape
+
+target_affine = nb.load('mask.nii.gz').get_affine()
+target_shape = nb.load('mask.nii.gz').shape
 
 
 class IntraLinearModel(object):
