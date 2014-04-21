@@ -10,8 +10,8 @@ from nilearn.image import resample_img
 from joblib import Memory, Parallel, delayed
 
 
-target_affine = nb.load('mask.nii.gz').get_affine()
-target_shape = nb.load('mask.nii.gz').shape
+target_affine = nb.load('mask_3mm.nii.gz').get_affine()
+target_shape = nb.load('mask_3mm.nii.gz').shape
 
 
 class IntraLinearModel(object):
@@ -161,12 +161,12 @@ if __name__ == '__main__':
     n_jobs = 48
 
     root_dir = '/storage/workspace/yschwart/new_brainpedia/preproc'
-    result_dir = '/storage/workspace/yschwart/new_brainpedia/intra_stats'
+    result_dir = '/storage/workspace/yschwart/new_brainpedia/intra_stats_3mm'
 
     loader = Loader(model_id='model001')
     encoder = IntraEncoder()
 
-    masker = MultiNiftiMasker(mask='mask.nii.gz', standardize=True,
+    masker = MultiNiftiMasker(mask='mask_3mm.nii.gz', standardize=True,
                               smoothing_fwhm=6, n_jobs=1)
 
     def sanitize_contrast(contrasts, insert_derivative=True):
