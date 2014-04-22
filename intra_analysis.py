@@ -238,6 +238,6 @@ if __name__ == '__main__':
                 'model', 'model002'),
             niimgs=subjects_niimgs[i],
             design_matrices=encoder.design_matrices_[i],
-            contrasts=sanitize_contrast(docs[i]['contrasts']), per_run=True)
+            contrasts=sanitize_contrast(docs[i]['contrasts'], per_run=True))
             for i, subject_id in enumerate(infos['subjects'])
         )
