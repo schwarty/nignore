@@ -169,7 +169,22 @@ if __name__ == '__main__':
     masker = MultiNiftiMasker(mask='mask_3mm.nii.gz', standardize=True,
                               smoothing_fwhm=6, n_jobs=1)
 
-    def sanitize_contrast(contrasts, insert_derivative=True):
+    def one_map_per_run(contrasts):
+        angry_contrasts = {}
+        for contrast_id in contrasts:
+            n_sessions = len(contrasts[contrast_id])
+            run_id = 1
+            task_id, con_name = contrast_id.split('_', 1)
+            for i, session_con in enumerate(contrasts[contrast_id]):
+                is_null = np.all(np.array(session_con == 0))
+                if session_con is not None and not is_null:
+                    new_con_id = '%s_run%03i_%s' % (task_id, run_id, con_name)
+                    angry_contrasts[new_con_id] = [None] * n_sessions
+                    angry_contrasts[new_con_id][i] = session_con
+                    run_id += 1
+        return angry_contrasts
+
+    def sanitize_contrast(contrasts, insert_derivative=True, one_per_run=True):
         angry_contrasts = {}
         for contrast_id in contrasts:
             contrast = []
@@ -181,6 +196,8 @@ if __name__ == '__main__':
                         np.arange(session_con.size) + 1, 0).tolist()
                 contrast.append(session_con)
             angry_contrasts[contrast_id] = contrast
+        if one_per_run:
+            return one_map_per_run(angry_contrasts)
         return angry_contrasts
 
     for study_dir in globing(root_dir, '*'):
