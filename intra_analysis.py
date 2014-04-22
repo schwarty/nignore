@@ -184,7 +184,7 @@ if __name__ == '__main__':
                     run_id += 1
         return angry_contrasts
 
-    def sanitize_contrast(contrasts, insert_derivative=True, one_per_run=True):
+    def sanitize_contrast(contrasts, insert_derivative=True, per_run=False):
         angry_contrasts = {}
         for contrast_id in contrasts:
             contrast = []
@@ -196,7 +196,7 @@ if __name__ == '__main__':
                         np.arange(session_con.size) + 1, 0).tolist()
                 contrast.append(session_con)
             angry_contrasts[contrast_id] = contrast
-        if one_per_run:
+        if per_run:
             return one_map_per_run(angry_contrasts)
         return angry_contrasts
 
@@ -230,7 +230,7 @@ if __name__ == '__main__':
         #         n_jobs=n_jobs)
         #     modeler.fit(niimgs, design_matrices)
         #     modeler.contrast(angry_contrasts)
-        stop
+
         Parallel(n_jobs=n_jobs)(delayed(do_intra_analysis)(
             masker=masker,
             output_dir='%s/%s/%s/%s/%s' % (
@@ -238,6 +238,6 @@ if __name__ == '__main__':
                 'model', 'model002'),
             niimgs=subjects_niimgs[i],
             design_matrices=encoder.design_matrices_[i],
-            contrasts=sanitize_contrast(docs[i]['contrasts']))
+            contrasts=sanitize_contrast(docs[i]['contrasts']), per_run=True)
             for i, subject_id in enumerate(infos['subjects'])
         )
