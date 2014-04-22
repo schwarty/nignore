@@ -213,7 +213,7 @@ if __name__ == '__main__':
         #         n_jobs=n_jobs)
         #     modeler.fit(niimgs, design_matrices)
         #     modeler.contrast(angry_contrasts)
-
+        stop
         Parallel(n_jobs=n_jobs)(delayed(do_intra_analysis)(
             masker=masker,
             output_dir='%s/%s/%s/%s/%s' % (
