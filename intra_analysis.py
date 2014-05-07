@@ -10,8 +10,8 @@ from nilearn.image import resample_img
 from joblib import Memory, Parallel, delayed
 
 
-target_affine = nb.load('mask.nii.gz').get_affine()
-target_shape = nb.load('mask.nii.gz').shape
+target_affine = nb.load('mask_3mm.nii.gz').get_affine()
+target_shape = nb.load('mask_3mm.nii.gz').shape
 
 
 class IntraLinearModel(object):
@@ -170,18 +170,33 @@ if __name__ == '__main__':
     from nignore.spm import IntraEncoder
     from nignore.utils import globing
 
-    n_jobs = 48
+    n_jobs = 24
 
     root_dir = '/storage/workspace/yschwart/new_brainpedia/preproc'
-    result_dir = '/storage/workspace/yschwart/new_brainpedia/intra_stats'
+    result_dir = '/storage/workspace/yschwart/new_brainpedia/intra_stats_3mm'
 
     loader = Loader(model_id='model001')
     encoder = IntraEncoder()
 
-    masker = MultiNiftiMasker(mask='mask.nii.gz', standardize=True,
+    masker = MultiNiftiMasker(mask='mask_3mm.nii.gz', standardize=True,
                               smoothing_fwhm=6, n_jobs=1)
 
-    def sanitize_contrast(contrasts, insert_derivative=True):
+    def one_map_per_run(contrasts):
+        angry_contrasts = {}
+        for contrast_id in contrasts:
+            n_sessions = len(contrasts[contrast_id])
+            run_id = 1
+            task_id, con_name = contrast_id.split('_', 1)
+            for i, session_con in enumerate(contrasts[contrast_id]):
+                is_null = np.all(np.array(session_con == 0))
+                if session_con is not None and not is_null:
+                    new_con_id = '%s_run%03i_%s' % (task_id, run_id, con_name)
+                    angry_contrasts[new_con_id] = [None] * n_sessions
+                    angry_contrasts[new_con_id][i] = session_con
+                    run_id += 1
+        return angry_contrasts
+
+    def sanitize_contrast(contrasts, insert_derivative=True, per_run=False):
         angry_contrasts = {}
         for contrast_id in contrasts:
             contrast = []
@@ -193,12 +208,13 @@ if __name__ == '__main__':
                         np.arange(session_con.size) + 1, 0).tolist()
                 contrast.append(session_con)
             angry_contrasts[contrast_id] = contrast
+        if per_run:
+            return one_map_per_run(angry_contrasts)
         return angry_contrasts
 
     # for study_dir in globing(root_dir, '*'):
     #     study_id = os.path.split(study_dir)[1]
     for study_id in ['knops2009recruitment']:
-        print study_id
 
         infos = glob_subjects_dirs('%s/%s/sub???' % (root_dir, study_id))
         docs = loader.fit_transform(infos['subjects_dirs'], infos['subjects'])
@@ -233,6 +249,6 @@ if __name__ == '__main__':
                 'model', 'model002'),
             niimgs=subjects_niimgs[i],
             design_matrices=encoder.design_matrices_[i],
-            contrasts=sanitize_contrast(docs[i]['contrasts']))
+            contrasts=sanitize_contrast(docs[i]['contrasts'], per_run=False))
             for i, subject_id in enumerate(infos['subjects'])
         )
