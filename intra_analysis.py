@@ -68,7 +68,7 @@ class IntraLinearModel(object):
         for i, (glm, design_mask, con_val) in enumerate(
                 zip(self.glm_, self.design_mask_, contrast_values)):
 
-            if (con_val is None or np.all(con_val == 0)
+            if (con_val is None or np.all(con_val == 0) or con_val.size == 0
                 or glm is None or np.any(con_val[~design_mask] != 0)):
                 # contrast null for session, or design_matrix ill conditioned
                 # or con_val is using a null regressor
