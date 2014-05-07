@@ -5,12 +5,12 @@ import nibabel as nb
 
 from nignore.utils import make_dir, copy_file, globing, copy_dir
 
-data_dir = "/volatile/drop/data"
+data_dir = "/lotta/new_brainpedia/data"
 intra_dir = "/lotta/brainpedia/intra_stats"
 preproc_dir = "/rosie/preproc"
 out_dir = "/volatile/drop/preproc"
 
-studies = globing(preproc_dir, 'pinel2007fast')
+studies = globing(preproc_dir, 'ds*')
 
 for study_dir in studies:
     study_id = os.path.split(study_dir)[1]
@@ -43,9 +43,9 @@ for study_dir in studies:
 
         out_anat = make_dir(out_model, 'anatomy')
         out_bold = make_dir(out_model, 'BOLD')
-        anat_path = os.path.join(subject_dir, 'whighres001_brain.nii')
-        if not os.path.exists(anat_path):
-            anat_path = os.path.join(subject_dir, 'whighres001.nii')
+        anat_path = os.path.join(subject_dir, 'whighres001.nii')
+        # if not os.path.exists(anat_path):
+        #     anat_path = os.path.join(subject_dir, 'whighres001.nii')
         anat = nb.load(anat_path)
         nb.save(anat, os.path.join(out_anat, 'highres001.nii.gz'))
 

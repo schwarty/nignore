@@ -40,16 +40,23 @@ class IntraLinearModel(object):
 
     def fit(self, niimgs, design_matrices):
         data = self.masker.fit_transform(niimgs)
-        self.glm_ = Parallel(n_jobs=self.n_jobs)(
+        all_results = Parallel(n_jobs=self.n_jobs)(
             delayed(self.memory.cache(_fit_glm))(
                 design_matrix, session_data, self.glm_model)
             for design_matrix, session_data in zip(design_matrices, data)
             if not session_data is None and not design_matrix is None)
-        for i, design_matrix in enumerate(design_matrices):
-            sv = np.linalg.svd(design_matrix)[1]
-            if sv[0] / sv[-1] > self.model_tol:
-                self.glm_[i] = None
+        self.glm_ = [r[0] for r in all_results]
+        self.design_mask_ = [r[1] for r in all_results]
         return self
+
+    def check_design(self, design_matrices):
+        if not isinstance(design_matrices, list):
+            design_matrices = [design_matrices]
+        sv_ratio = []
+        for X in design_matrices:
+            sv = np.linalg.svd(X)[1]
+            sv_ratio.append(sv[0] / sv[-1])
+        return sv_ratio
 
     def _contrast(self, contrast_id, contrast_values):
         contrast = None
@@ -58,16 +65,20 @@ class IntraLinearModel(object):
                         for glm in self.glm_]
         contrast_values = check_contrast(contrast_values, n_regressors)
 
-        for i, (glm, con_val) in enumerate(zip(self.glm_, contrast_values)):
-            if con_val is None or np.all(con_val == 0) or glm is None:
+        for i, (glm, design_mask, con_val) in enumerate(
+                zip(self.glm_, self.design_mask_, contrast_values)):
+
+            if (con_val is None or np.all(con_val == 0)
+                or glm is None or np.any(con_val[~design_mask] != 0)):
                 # contrast null for session, or design_matrix ill conditioned
+                # or con_val is using a null regressor
                 pass
             elif contrast is None:
                 contrast = glm.contrast(
-                    con_val, contrast_type=self.contrast_type)
+                    con_val[design_mask], contrast_type=self.contrast_type)
             else:
                 contrast = contrast + glm.contrast(
-                    con_val, contrast_type=self.contrast_type)
+                    con_val[design_mask], contrast_type=self.contrast_type)
 
         if contrast is None:
             return dict()
@@ -117,9 +128,10 @@ class IntraLinearModel(object):
 
 
 def _fit_glm(X, Y, glm_model):
-    glm = GeneralLinearModel(X)
+    design_mask = ~np.all(X == 0, axis=0)
+    glm = GeneralLinearModel(X[design_mask])
     glm.fit(Y, model=glm_model)
-    return glm
+    return glm, design_mask
 
 
 def check_contrast(con_val, n_regressors):
@@ -183,9 +195,9 @@ if __name__ == '__main__':
             angry_contrasts[contrast_id] = contrast
         return angry_contrasts
 
-    for study_dir in globing(root_dir, '*'):
-        study_id = os.path.split(study_dir)[1]
-    # for study_id in ['pinel2009twins']:
+    # for study_dir in globing(root_dir, '*'):
+    #     study_id = os.path.split(study_dir)[1]
+    for study_id in ['knops2009recruitment']:
         print study_id
 
         infos = glob_subjects_dirs('%s/%s/sub???' % (root_dir, study_id))
