@@ -129,7 +129,7 @@ class IntraLinearModel(object):
 
 def _fit_glm(X, Y, glm_model):
     design_mask = ~np.all(X == 0, axis=0)
-    glm = GeneralLinearModel(X[design_mask])
+    glm = GeneralLinearModel(X[:, design_mask])
     glm.fit(Y, model=glm_model)
     return glm, design_mask
 
