@@ -135,6 +135,8 @@ def _fit_glm(X, Y, glm_model, model_tol=1e10):
         glm = GeneralLinearModel(X[:, design_mask])
         glm.fit(Y, model=glm_model)
         return glm, design_mask
+    else:
+        return None, design_mask
 
 
 def check_contrast(con_val, n_regressors):
