@@ -42,7 +42,7 @@ class IntraLinearModel(object):
         data = self.masker.fit_transform(niimgs)
         all_results = Parallel(n_jobs=self.n_jobs)(
             delayed(self.memory.cache(_fit_glm))(
-                design_matrix, session_data, self.glm_model)
+                design_matrix, session_data, self.glm_model, self.model_tol)
             for design_matrix, session_data in zip(design_matrices, data)
             if not session_data is None and not design_matrix is None)
         self.glm_ = [r[0] for r in all_results]
@@ -127,11 +127,14 @@ class IntraLinearModel(object):
         return outputs
 
 
-def _fit_glm(X, Y, glm_model):
+def _fit_glm(X, Y, glm_model, model_tol=1e10):
     design_mask = ~np.all(X == 0, axis=0)
-    glm = GeneralLinearModel(X[:, design_mask])
-    glm.fit(Y, model=glm_model)
-    return glm, design_mask
+    sv = np.linalg.svd(X[:, design_mask])[1]
+    sv = sv[0] / sv[-1]
+    if sv < model_tol:
+        glm = GeneralLinearModel(X[:, design_mask])
+        glm.fit(Y, model=glm_model)
+        return glm, design_mask
 
 
 def check_contrast(con_val, n_regressors):
