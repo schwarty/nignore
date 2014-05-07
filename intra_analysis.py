@@ -175,7 +175,7 @@ if __name__ == '__main__':
     from nignore.spm import IntraEncoder
     from nignore.utils import globing
 
-    n_jobs = 1
+    n_jobs = 24
 
     root_dir = '/storage/workspace/yschwart/new_brainpedia/preproc'
     result_dir = '/storage/workspace/yschwart/new_brainpedia/intra_stats_3mm'
