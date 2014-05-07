@@ -200,9 +200,9 @@ if __name__ == '__main__':
             return one_map_per_run(angry_contrasts)
         return angry_contrasts
 
-    for study_dir in globing(root_dir, '*'):
-        study_id = os.path.split(study_dir)[1]
-    # for study_id in ['pinel2009twins']:
+    # for study_dir in globing(root_dir, '*'):
+    #     study_id = os.path.split(study_dir)[1]
+    for study_id in ['HCP']:
         print study_id
 
         infos = glob_subjects_dirs('%s/%s/sub???' % (root_dir, study_id))
@@ -238,6 +238,6 @@ if __name__ == '__main__':
                 'model', 'model002'),
             niimgs=subjects_niimgs[i],
             design_matrices=encoder.design_matrices_[i],
-            contrasts=sanitize_contrast(docs[i]['contrasts'], per_run=True))
+            contrasts=sanitize_contrast(docs[i]['contrasts'], per_run=False))
             for i, subject_id in enumerate(infos['subjects'])
         )
