@@ -212,9 +212,9 @@ if __name__ == '__main__':
             return one_map_per_run(angry_contrasts)
         return angry_contrasts
 
-    # for study_dir in globing(root_dir, '*'):
-    #     study_id = os.path.split(study_dir)[1]
-    for study_id in ['knops2009recruitment']:
+    for study_dir in globing(root_dir, '*'):
+        study_id = os.path.split(study_dir)[1]
+    # for study_id in ['knops2009recruitment']:
 
         infos = glob_subjects_dirs('%s/%s/sub???' % (root_dir, study_id))
         docs = loader.fit_transform(infos['subjects_dirs'], infos['subjects'])
