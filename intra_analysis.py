@@ -217,7 +217,7 @@ if __name__ == '__main__':
             return one_map_per_run(angry_contrasts)
         return angry_contrasts
 
-    for study_dir in globing(root_dir, '*'):
+    for study_dir in globing(root_dir, '*')[12:]:
         study_id = os.path.split(study_dir)[1]
     # for study_id in ['knops2009recruitment']:
 
