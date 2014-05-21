@@ -177,7 +177,7 @@ if __name__ == '__main__':
     n_jobs = 24
 
     root_dir = '/storage/workspace/yschwart/new_brainpedia/preproc'
-    result_dir = '/storage/workspace/yschwart/new_brainpedia/intra_stats_3mm'
+    result_dir = '/storage/workspace/yschwart/new_brainpedia/intra_stats_3mm_clean'
 
     loader = Loader(model_id='model001')
     encoder = IntraEncoder()
@@ -216,9 +216,9 @@ if __name__ == '__main__':
             return one_map_per_run(angry_contrasts)
         return angry_contrasts
 
-    for study_dir in globing(root_dir, '*')[12:]:
+    for study_dir in globing(root_dir, 'ds*'):
         study_id = os.path.split(study_dir)[1]
-    # for study_id in ['knops2009recruitment']:
+    # for study_id in ['ds002']:
 
         infos = glob_subjects_dirs('%s/%s/sub???' % (root_dir, study_id))
         docs = loader.fit_transform(infos['subjects_dirs'], infos['subjects'])
@@ -254,5 +254,16 @@ if __name__ == '__main__':
             niimgs=subjects_niimgs[i],
             design_matrices=encoder.design_matrices_[i],
             contrasts=sanitize_contrast(docs[i]['contrasts'], per_run=False))
+            for i, subject_id in enumerate(infos['subjects'])
+        )
+
+        Parallel(n_jobs=n_jobs)(delayed(do_intra_analysis)(
+            masker=masker,
+            output_dir='%s/%s/%s/%s/%s' % (
+                result_dir, study_id, subject_id,
+                'model', 'model003'),
+            niimgs=subjects_niimgs[i],
+            design_matrices=encoder.design_matrices_[i],
+            contrasts=sanitize_contrast(docs[i]['contrasts'], per_run=True))
             for i, subject_id in enumerate(infos['subjects'])
         )

@@ -11,7 +11,7 @@ from matplotlib import colors as _colors
 
 from scipy.stats import scoreatpercentile
 from sklearn.preprocessing import StandardScaler
-from nilearn.masking import _smooth_array
+from nilearn.image.image import _smooth_array
 from nipy.labs.viz import plot_map
 from nipy.labs.viz_tools import cm
 from nipy.labs.viz_tools import anat_cache
