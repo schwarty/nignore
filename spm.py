@@ -35,7 +35,7 @@ def get_intra_infos(mat_file, memory=Memory(None)):
     mat = memory.cache(load_matfile)(mat_file)['SPM']
     infos = {}
     infos['n_scans'] = mat.nscan.tolist() \
-        if isinstance(mat.nscan.tolist(), list) else [mat.nscan.tolist()]
+        if isinstance(mat.nscan.tolist(), list) else [mat.nscan]
     infos['n_sessions'] = mat.nscan.size
     infos['tr'] = float(mat.xY.RT)    # xY: data
     return infos
