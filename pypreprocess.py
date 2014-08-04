@@ -10,7 +10,7 @@ intra_dir = "/lotta/brainpedia/intra_stats"
 preproc_dir = "/rosie/preproc"
 out_dir = "/volatile/drop/preproc"
 
-studies = globing(preproc_dir, 'ds*')
+studies = globing(preproc_dir, '*')
 
 for study_dir in studies:
     study_id = os.path.split(study_dir)[1]
