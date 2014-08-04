@@ -10,8 +10,9 @@ from nilearn.image import resample_img
 from joblib import Memory, Parallel, delayed
 from brainlet.utils import load_std_niimg
 
-target_affine = nb.load('mask_3mm.nii.gz').get_affine()
-target_shape = nb.load('mask_3mm.nii.gz').shape
+WORK_DIR = os.getenv('WORK_DIR')
+target_affine = nb.load(os.path.join(WORK_DIR, 'mask_3mm.nii.gz')).get_affine()
+target_shape = nb.load(os.path.join(WORK_DIR, 'mask_3mm.nii.gz')).shape
 target_affine = None
 target_shape = None
 
