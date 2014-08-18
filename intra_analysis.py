@@ -49,8 +49,6 @@ class IntraLinearModel(object):
             if not session_data is None and not design_matrix is None)
         self.glm_ = [r[0] for r in all_results]
         self.design_mask_ = [r[1] for r in all_results]
-        print 'n_none:', sum([1 for g in self.glm_ if g is None])
-        print 'n_zero:', sum([np.sum(~m) for m in self.design_mask_])
         return self
 
     def check_design(self, design_matrices):
@@ -180,39 +178,47 @@ if __name__ == '__main__':
     from nignore.spm import IntraEncoder
     from nignore.utils import globing
 
-    from load_data.openfmri import collect_openfmri, fetch_glm_data
+    from load_data.openfmri import load_glm_inputs
 
     memory = Memory('/storage/workspace/yschwart/cache')
     base_dir = '/storage/workspace/yschwart/new_brainpedia'
-    result_dir = '/storage/workspace/yschwart/new_brainpedia/youpla'
+    result_dir = '/storage/workspace/yschwart/new_brainpedia/intra_stats_wip'
+    # result_dir = '/storage/workspace/yschwart/new_brainpedia/youpla'
+    # base_dir = '/storage/workspace/yschwart'
     n_jobs = -1
 
     # glob preproc folders                                                                                                                    
-    study_dirs = sorted(glob.glob(os.path.join(base_dir, 'preproc', '*')))
-    datasets, structural, functional, conditions, _ = collect_openfmri(study_dirs, memory=memory, n_jobs=-1)
-
-    # we can filter the dataframes!                                                                                                           
-    functional = functional[functional.study == 'amalric2012mathematicians']
-    conditions = conditions[conditions.study == 'amalric2012mathematicians']
+    study_dirs = sorted(glob.glob(os.path.join(base_dir, 'preproc_wip', '*')))
+    # study_dirs = sorted(glob.glob(os.path.join(base_dir, 'preproc_all', '.openfmri', 'amalric2012mathematicians')))
 
     # computes design matrices for the given dataframes                                                                                       
-    designs = fetch_glm_data(datasets, functional, conditions, hrf_model='canonical with derivative', n_jobs=-1)
-    masker = MultiNiftiMasker(load_std_niimg('mask_1.5mm'), smoothing_fwhm=6, n_jobs=1)
+    glm_inputs = load_glm_inputs(study_dirs, hrf_model='canonical with derivative', img_ext='nii.gz', n_jobs=-1)
+    masker = MultiNiftiMasker(load_std_niimg('mask_3mm'), smoothing_fwhm=6, n_jobs=1)
 
     # Compute contrasts
     print 'Computing contrasts...'
 
-    # for k in designs:
-    #     dm = designs[k]['design'][0]
+    # for k in glm_inputs:
+    #     dm = glm_inputs[k]['design'][0]
 
     Parallel(n_jobs=-1)(delayed(do_intra_analysis)(
         masker=masker,
         output_dir='%s/%s/%s/%s/%s' % (
             result_dir, k[0], k[1], 'model', 'model002'),
-            niimgs=designs[k]['bold'],
-            design_matrices=[dm.values for dm in designs[k]['design']],
-            contrasts=designs[k]['model001'])
-            for k in designs
+            niimgs=glm_inputs[k]['bold'],
+            design_matrices=[dm.values for dm in glm_inputs[k]['design']],
+            contrasts=glm_inputs[k]['model001'])
+            for k in glm_inputs
+        )
+
+    Parallel(n_jobs=-1)(delayed(do_intra_analysis)(
+        masker=masker,
+        output_dir='%s/%s/%s/%s/%s' % (
+            result_dir, k[0], k[1], 'model', 'model003'),
+            niimgs=glm_inputs[k]['bold'],
+            design_matrices=[dm.values for dm in glm_inputs[k]['design']],
+            contrasts=glm_inputs[k]['model001_per_run'])
+            for k in glm_inputs
         )
 
     # n_jobs = 24

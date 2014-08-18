@@ -6,6 +6,7 @@ import hashlib
 import numpy as np
 import nibabel as nb
 import scipy.io as sio
+import pandas as pd
 
 from joblib import Memory, Parallel, delayed
 from nipy.modalities.fmri.design_matrix import make_dmtx
@@ -95,6 +96,46 @@ def get_intra_preproc(mat_file, work_dir, n_scans, memory=Memory(None)):
                 strip_prefix_filename(session, 3))
 
     return preproc
+
+
+def check_conditions(mat_file, session_names=None, condition_names=None):
+    matfile = load_matfile(mat_file)['SPM']
+    session_names = dict() if session_names is None else session_names
+    condition_names = dict() if condition_names is None else condition_names
+    conditions = {}
+
+    if hasattr(matfile.Sess, '__iter__'):
+        sessions = matfile.Sess
+    else:
+        sessions = [matfile.Sess]
+
+    for session_id, session in enumerate(sessions):
+
+        for condition_id, u in enumerate(session.U):
+            default_condition_name = str(u.name)
+
+            onsets = u.ons.tolist()
+            durations = u.dur.tolist()
+            if not isinstance(onsets, list):
+                onsets = [onsets]
+                durations = [durations]
+            n_events = len(onsets)
+            amplitudes = [1] * n_events
+
+            session_name = session_names.get(session_id + 1, 'session%03i' % (session_id + 1))
+            condition_name = condition_names.get((session_id + 1, condition_id + 1), default_condition_name)
+
+            for i in range(n_events):
+                conditions.setdefault('session_id', []).append(session_id + 1)
+                conditions.setdefault('session_name', []).append(session_name)
+                conditions.setdefault('condition_id', []).append(condition_id + 1)
+                conditions.setdefault('condition_name', []).append(condition_name)
+                conditions.setdefault('condition_default_name', []).append(default_condition_name)
+                conditions.setdefault('onset', []).append(onsets[i])
+                conditions.setdefault('duration', []).append(durations[i])
+                conditions.setdefault('amplitude', []).append(amplitudes[i])
+
+    return pd.DataFrame(conditions)
 
 
 def get_intra_onsets(mat_file, memory=Memory(None)):

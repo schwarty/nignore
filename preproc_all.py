@@ -3,11 +3,14 @@ import glob
 
 module_dir = os.path.dirname(os.path.abspath(__file__))
 
-data_dir = '/storage/workspace/brainpedia/data'
-base_out_dir = '/storage/workspace/yschwart/keeporient_preproc'
+data_dir = '/storage/workspace/yschwart/new_brainpedia/data'
+base_out_dir = '/storage/workspace/yschwart/preproc_all'
 exec_path = '/storage/workspace/yschwart/python/pypreprocess/examples/openfmri_preproc.py'
 
 for input_dir in glob.glob(data_dir + '/*'):
+# studies = ['ds009', 'ds114', 'ds116', 'pinel2007fast', 'pinel2009twins']
+# for study_id in studies:
+    #input_dir = os.path.join(data_dir, study_id)
     print 'input_dir:', input_dir
     job = {}
 
