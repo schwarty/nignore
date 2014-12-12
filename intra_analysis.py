@@ -167,6 +167,7 @@ def do_intra_analysis(masker, output_dir, niimgs, design_matrices, contrasts):
         target_shape=target_shape,
         output_effects=True,
         output_variance=True,
+        model_tol=1e30,
         n_jobs=1)
     modeler.fit(niimgs, design_matrices)
     modeler.contrast(contrasts)
@@ -182,13 +183,13 @@ if __name__ == '__main__':
 
     memory = Memory('/storage/workspace/yschwart/cache')
     base_dir = '/storage/workspace/yschwart/new_brainpedia'
-    result_dir = '/storage/workspace/yschwart/new_brainpedia/intra_stats_wip'
+    result_dir = '/storage/workspace/yschwart/new_brainpedia/intra_stats'
     # result_dir = '/storage/workspace/yschwart/new_brainpedia/youpla'
     # base_dir = '/storage/workspace/yschwart'
     n_jobs = -1
 
     # glob preproc folders                                                                                                                    
-    study_dirs = sorted(glob.glob(os.path.join(base_dir, 'preproc_wip', '*')))
+    study_dirs = sorted(glob.glob(os.path.join(base_dir, 'preproc', 'ds002')))
     # study_dirs = sorted(glob.glob(os.path.join(base_dir, 'preproc_all', '.openfmri', 'amalric2012mathematicians')))
 
     # computes design matrices for the given dataframes                                                                                       
